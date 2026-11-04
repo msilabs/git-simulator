@@ -34,7 +34,7 @@
     "test:e2e": "playwright test"
   },
   "dependencies": {
-    "next": "16.4.2",
+    "next": "16.4.3",
     "react": "19.1.0",
     "react-dom": "19.1.0"
   },
