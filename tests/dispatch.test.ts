@@ -35,6 +35,28 @@ describe("command dispatch", () => {
     expect(runCommand(EMPTY_STATE, 'git commit -m "x').ok).toBe(false);
   });
 
+  it("returns the very same state object when a command changes nothing", () => {
+    const s = state(["git init", 'edit a "x"', "git add .", 'git commit -m "a"', "git branch f"]);
+    for (const cmd of [
+      "touch a",
+      'edit a "x"',
+      "git add .",
+      "git add a",
+      "git restore a",
+      "git restore --staged a",
+      "git switch main",
+      "git merge f",
+      "git branch -m main",
+      "git status",
+      "git log",
+      "git diff",
+      "ls",
+      "cat a",
+    ]) {
+      expect(runCommand(s, cmd).state, cmd).toBe(s);
+    }
+  });
+
   it("never mutates the previous state", () => {
     const before = state(["git init", "touch a.txt"]);
     const snapshot = JSON.stringify(before);

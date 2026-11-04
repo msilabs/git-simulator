@@ -24,5 +24,6 @@ export const touch: CommandHandler = (state, args) => {
   const explanation = [created.length ? msg.touchCreated(created) : "", existing.length ? msg.touchExists(existing) : ""]
     .filter(Boolean)
     .join("\n");
-  return success({ ...state, workdir }, "", explanation);
+  // কিছু না বদলালে একই state ফেরত দিই, যাতে undo-র ইতিহাসে ফাঁকা ধাপ না জমে
+  return success(created.length ? { ...state, workdir } : state, "", explanation);
 };

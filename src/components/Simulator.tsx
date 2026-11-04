@@ -1,186 +1,136 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { runCommand, EMPTY_STATE } from "@/lib/git/repo";
-import { tokenize } from "@/lib/git/parser";
+import { useCallback, useEffect, useRef, useState, type KeyboardEvent } from "react";
 import { msg } from "@/lib/git/messages";
-import type { SimState } from "@/lib/git/types";
-import { clearSession, loadSession, saveSession, type TerminalLine } from "@/lib/storage";
+import { applyCommand, freshSession, promptFor, undo as undoSession, type Session } from "@/lib/session";
+import { STARTER_STEPS } from "@/lib/steps";
+import { clearSession, loadSession, saveSession } from "@/lib/storage";
+import { ui } from "@/lib/ui-text";
 import { Terminal } from "./Terminal";
 import { FilePanel } from "./FilePanel";
 import { CommitGraph } from "./CommitGraph";
 
-/** শুরুর "প্রথম ৫টা কমান্ড" */
-export const STARTER_STEPS = [
-  "git init",
-  "touch index.html",
-  "git add index.html",
-  'git commit -m "first commit"',
-  "git log",
-] as const;
-
-const sameCommand = (a: string, b: string) => tokenize(a).tokens.join("\u0001") === tokenize(b).tokens.join("\u0001");
-
-const welcomeLines = (): TerminalLine[] => [{ id: 1, kind: "welcome", text: msg.welcome }];
-
-/** "আগের ধাপে ফেরা"-র জন্য: কোন কমান্ডের আগে state কেমন ছিল */
-interface PastEntry {
-  sim: SimState;
-  command: string;
-}
-
-interface Session {
-  sim: SimState;
-  lines: TerminalLine[];
-  history: string[];
-  step: number;
-  past: PastEntry[];
-}
-
-const MAX_UNDO = 30;
-
-const freshSession = (): Session => ({ sim: EMPTY_STATE, lines: welcomeLines(), history: [], step: 0, past: [] });
+const buttonOutline =
+  "rounded-lg px-2.5 py-2 text-sm font-semibold text-teal ring-1 ring-teal/30 transition hover:bg-teal/5 sm:px-3";
 
 export function Simulator() {
-  const [session, setSession] = useState<Session>(freshSession);
+  const [session, setSession] = useState<Session>(() => freshSession());
   const [loaded, setLoaded] = useState(false);
+  const [saveFailed, setSaveFailed] = useState(false);
   const [confirmReset, setConfirmReset] = useState(false);
-  const nextId = useRef(2);
+  const dialogRef = useRef<HTMLDivElement>(null);
 
   // প্রথমবার: সেভ করা অবস্থা ফিরিয়ে আনা (সার্ভারে localStorage নেই, তাই useEffect-এ)
   useEffect(() => {
-    const saved = loadSession();
-    if (saved) {
-      nextId.current = Math.max(1, ...saved.lines.map((l) => l.id)) + 1;
-      setSession({
-        sim: saved.sim,
-        lines: saved.lines,
-        history: saved.history,
-        step: saved.step ?? 0,
-        past: saved.past ?? [],
-      });
+    const result = loadSession();
+    if (result.status === "ok") setSession(result.session);
+    else if (result.status === "corrupt") {
+      clearSession();
+      setSession(freshSession(`${ui.loadFailed} ${msg.welcome}`));
     }
     setLoaded(true);
   }, []);
 
   useEffect(() => {
-    if (loaded) saveSession({ v: 1, ...session });
+    if (loaded) setSaveFailed(!saveSession(session));
   }, [session, loaded]);
 
-  const prompt = useMemo(
-    () => `~/project${session.sim.repo ? ` (${session.sim.repo.head})` : ""} $`,
-    [session.sim.repo],
-  );
-
-  const run = useCallback(
-    (command: string) => {
-      setSession((s) => {
-        const id = () => nextId.current++;
-        const promptNow = `~/project${s.sim.repo ? ` (${s.sim.repo.head})` : ""} $`;
-        const input: TerminalLine = { id: id(), kind: "input", text: command, prompt: promptNow };
-        if (!command.trim()) return { ...s, lines: [...s.lines, input] };
-
-        const result = runCommand(s.sim, command);
-        const history = s.history[s.history.length - 1] === command ? s.history : [...s.history, command];
-        if (result.clearScreen) return { ...s, sim: result.state, lines: [], history };
-        // state বদলালে আগের অবস্থা জমিয়ে রাখি (immutable বলে শুধু রেফারেন্স রাখলেই হয়)
-        const past = result.state === s.sim ? s.past : [...s.past, { sim: s.sim, command }].slice(-MAX_UNDO);
-
-        const lines = [...s.lines, input];
-        if (result.output) lines.push({ id: id(), kind: result.ok ? "output" : "error", text: result.output });
-        if (result.explanation) {
-          lines.push({ id: id(), kind: result.ok ? "explain" : "explain-error", text: result.explanation });
-        }
-
-        let step = s.step;
-        if (result.ok && step < STARTER_STEPS.length && sameCommand(command, STARTER_STEPS[step])) {
-          step++;
-          if (step === STARTER_STEPS.length) lines.push({ id: id(), kind: "welcome", text: msg.stepsDone });
-        }
-        return { sim: result.state, lines, history, step, past };
-      });
-    },
-    [],
-  );
-
-  const undo = useCallback(() => {
-    setSession((s) => {
-      const last = s.past[s.past.length - 1];
-      if (!last) return s;
-      const line: TerminalLine = { id: nextId.current++, kind: "welcome", text: msg.undoDone(last.command) };
-      return { ...s, sim: last.sim, past: s.past.slice(0, -1), lines: [...s.lines, line] };
-    });
-  }, []);
+  const run = useCallback((command: string) => setSession((s) => applyCommand(s, command)), []);
+  const undo = useCallback(() => setSession(undoSession), []);
 
   const reset = () => {
     clearSession();
-    nextId.current = 2;
-    setSession({ ...freshSession(), lines: [{ id: 1, kind: "welcome", text: msg.resetDone }] });
+    setSession(freshSession(msg.resetDone));
     setConfirmReset(false);
   };
 
+  // মোডাল খোলা থাকলে Tab শুধু মোডালের বোতামগুলোর মধ্যেই ঘোরে
+  const trapFocus = (e: KeyboardEvent<HTMLDivElement>) => {
+    if (e.key === "Escape") setConfirmReset(false);
+    if (e.key !== "Tab" || !dialogRef.current) return;
+    const buttons = [...dialogRef.current.querySelectorAll("button")];
+    const first = buttons[0];
+    const last = buttons[buttons.length - 1];
+    if (e.shiftKey && document.activeElement === first) {
+      e.preventDefault();
+      last.focus();
+    } else if (!e.shiftKey && document.activeElement === last) {
+      e.preventDefault();
+      first.focus();
+    }
+  };
+
+  const lastPast = session.past[session.past.length - 1];
   const steps = STARTER_STEPS.map((command, i) => ({ command, done: i < session.step }));
 
   return (
     <div className="flex min-h-dvh flex-col lg:h-dvh">
-      <header className="sticky top-0 z-20 border-b border-ink/10 bg-white/90 backdrop-blur">
-        <div className="mx-auto flex max-w-[1500px] items-center justify-between gap-3 px-4 py-3">
+      <header className="sticky top-[env(safe-area-inset-top,0px)] z-20 border-b border-ink/10 bg-white/90 backdrop-blur">
+        <div className="mx-auto flex max-w-[1500px] items-center justify-between gap-2 px-4 py-3 sm:gap-3">
           <div className="flex min-w-0 items-center gap-2.5">
             <span className="grid h-9 w-9 shrink-0 place-items-center rounded-xl bg-ink font-mono text-lg font-bold text-mint" aria-hidden>
               m
             </span>
             <div className="min-w-0">
-              <h1 className="truncate text-base font-bold leading-tight text-ink sm:text-lg">Git শেখার সিমুলেটর</h1>
-              <p className="hidden text-xs text-slate sm:block">ভয় না পেয়ে Git চর্চা করুন। এখানে কিছুই নষ্ট হবে না।</p>
+              <h1 className="truncate text-base font-bold leading-tight text-ink sm:text-lg">{ui.appTitle}</h1>
+              <p className="hidden text-xs text-slate sm:block">{ui.tagline}</p>
             </div>
           </div>
-          <div className="flex shrink-0 items-center gap-2">
+          <div className="flex shrink-0 items-center gap-1.5 sm:gap-2">
             <button
               type="button"
               onClick={undo}
-              disabled={session.past.length === 0}
-              title={
-                session.past.length
-                  ? `আগের ধাপে ফিরুন: ${session.past[session.past.length - 1].command}`
-                  : "ফেরার মতো কোনো ধাপ নেই"
-              }
-              aria-label="আগের ধাপে ফিরুন"
-              className="rounded-lg px-3 py-2 text-sm font-semibold text-teal ring-1 ring-teal/30 transition hover:bg-teal/5 disabled:cursor-not-allowed disabled:opacity-40 disabled:hover:bg-transparent"
+              disabled={!lastPast}
+              title={lastPast ? ui.undoTitle(lastPast.command) : ui.undoNone}
+              aria-label={ui.undoLabel}
+              className={`${buttonOutline} disabled:cursor-not-allowed disabled:opacity-40 disabled:hover:bg-transparent`}
             >
-              ↶<span className="hidden sm:inline"> আগের ধাপে</span>
+              ↶<span className="hidden sm:inline"> {ui.undo}</span>
             </button>
-            <button
-              type="button"
-              onClick={() => run("help")}
-              className="rounded-lg px-3 py-2 text-sm font-semibold text-teal ring-1 ring-teal/30 transition hover:bg-teal/5"
-            >
-              help
+            <button type="button" onClick={() => run("help")} className={buttonOutline}>
+              {ui.help}
             </button>
             <button
               type="button"
               onClick={() => setConfirmReset(true)}
-              className="rounded-lg bg-ink px-3 py-2 text-sm font-semibold text-white transition hover:bg-ink-3"
+              aria-label={ui.reset}
+              title={ui.reset}
+              className="rounded-lg bg-ink px-2.5 py-2 text-sm font-semibold text-white transition hover:bg-ink-3 sm:px-3"
             >
-              নতুন করে শুরু
+              <span aria-hidden className="sm:hidden">
+                ↺
+              </span>
+              <span className="hidden sm:inline">{ui.reset}</span>
             </button>
           </div>
         </div>
+        {saveFailed && (
+          <p role="status" className="border-t border-sun/40 bg-[#FFF6E5] px-4 py-1.5 text-center text-xs text-ink">
+            ⚠ {ui.saveFailed}
+          </p>
+        )}
       </header>
 
       <main className="mx-auto grid w-full max-w-[1500px] flex-1 gap-4 p-4 lg:min-h-0 lg:grid-cols-[minmax(0,1.3fr)_minmax(0,1fr)] lg:grid-rows-[auto_minmax(0,1fr)]">
         {/* মোবাইলে ক্রম: গ্রাফ → ফাইল → টার্মিনাল */}
-        <div className="h-[330px] lg:col-start-1 lg:row-start-2 lg:h-auto lg:min-h-0">
+        <div className="h-[330px] min-w-0 lg:col-start-1 lg:row-start-2 lg:h-auto lg:min-h-0">
           <CommitGraph repo={session.sim.repo} />
         </div>
-        <div className="lg:col-start-1 lg:row-start-1">
+        <div className="min-w-0 lg:col-start-1 lg:row-start-1">
           <FilePanel state={session.sim} />
         </div>
-        <div className="h-[70dvh] min-h-[380px] lg:col-start-2 lg:row-span-2 lg:row-start-1 lg:h-auto lg:min-h-0">
-          <Terminal lines={session.lines} history={session.history} prompt={prompt} steps={steps} onRun={run} />
+        <div className="h-[70dvh] min-h-[380px] min-w-0 lg:col-start-2 lg:row-span-2 lg:row-start-1 lg:h-auto lg:min-h-0">
+          <Terminal
+            lines={session.lines}
+            history={session.history}
+            prompt={promptFor(session.sim)}
+            steps={steps}
+            onRun={run}
+          />
         </div>
       </main>
 
-      <footer className="py-3 text-center text-xs text-slate">msilabs · Free &amp; open source</footer>
+      <footer className="py-3 text-center text-xs text-slate">{ui.footer}</footer>
 
       {confirmReset && (
         <div
@@ -188,14 +138,15 @@ export function Simulator() {
           role="dialog"
           aria-modal="true"
           aria-labelledby="reset-title"
-          onKeyDown={(e) => e.key === "Escape" && setConfirmReset(false)}
+          aria-describedby="reset-body"
+          onKeyDown={trapFocus}
         >
-          <div className="w-full max-w-sm rounded-2xl bg-white p-5 shadow-xl">
+          <div ref={dialogRef} className="w-full max-w-sm rounded-2xl bg-white p-5 shadow-xl">
             <h2 id="reset-title" className="text-lg font-bold text-ink">
-              নতুন করে শুরু করবেন?
+              {ui.resetTitle}
             </h2>
-            <p className="mt-2 text-sm text-slate">
-              সব ফাইল, commit, branch আর টার্মিনালের লেখা মুছে যাবে। এটা আর ফেরানো যাবে না।
+            <p id="reset-body" className="mt-2 text-sm text-slate">
+              {ui.resetBody}
             </p>
             <div className="mt-5 flex justify-end gap-2">
               <button
@@ -204,14 +155,14 @@ export function Simulator() {
                 onClick={() => setConfirmReset(false)}
                 className="rounded-lg px-4 py-2 text-sm font-semibold text-ink ring-1 ring-ink/20 hover:bg-cloud"
               >
-                না, থাক
+                {ui.resetCancel}
               </button>
               <button
                 type="button"
                 onClick={reset}
                 className="rounded-lg bg-[#B42318] px-4 py-2 text-sm font-semibold text-white hover:bg-[#912018]"
               >
-                হ্যাঁ, সব মুছুন
+                {ui.resetConfirm}
               </button>
             </div>
           </div>
