@@ -21,6 +21,8 @@ export interface SavedSession {
   readonly lines: TerminalLine[];
   readonly history: string[];
   readonly step: number;
+  /** "আগের ধাপে ফেরা"-র জন্য আগের অবস্থাগুলো (v2-এ যোগ হয়েছে, তাই পুরোনো সেভে নাও থাকতে পারে) */
+  readonly past?: { sim: SimState; command: string }[];
 }
 
 const KEY = "msilabs-git-simulator:v1";
@@ -45,6 +47,7 @@ export function saveSession(session: SavedSession): void {
       ...session,
       lines: session.lines.slice(-MAX_LINES),
       history: session.history.slice(-MAX_HISTORY),
+      past: session.past?.slice(-30),
     };
     window.localStorage.setItem(KEY, JSON.stringify(trimmed));
   } catch {

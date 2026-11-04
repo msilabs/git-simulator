@@ -2,14 +2,16 @@
 
 import type { SimState } from "@/lib/git/types";
 import { allPaths, headCommit } from "@/lib/git/helpers";
+import { bn } from "@/lib/git/messages";
 
-type Badge = "untracked" | "modified" | "staged" | "deleted" | "committed";
+type Badge = "untracked" | "modified" | "staged" | "deleted" | "committed" | "conflict";
 
 const BADGE: Record<Badge, { label: string; className: string }> = {
   untracked: { label: "untracked", className: "bg-slate text-white" },
   modified: { label: "modified", className: "bg-sun text-ink" },
   staged: { label: "staged", className: "bg-mint text-ink" },
   deleted: { label: "deleted", className: "bg-[#FDE2E2] text-[#8A1C1C]" },
+  conflict: { label: "conflict", className: "bg-[#B42318] text-white" },
   committed: { label: "commit করা", className: "bg-cloud text-slate ring-1 ring-slate/20" },
 };
 
@@ -57,16 +59,19 @@ export function FilePanel({ state }: { state: SimState }) {
   const head = repo ? headCommit(repo) : null;
   const tree = head?.files ?? {};
 
-  const workRows: Row[] = allPaths(workdir, index)
+  const unmerged = repo?.merge?.unmerged ?? {};
+  const workRows: Row[] = allPaths(workdir, index, unmerged)
     .filter((p) => p in workdir || (repo && p in index))
-    .map((p) => {
+    .map((p): Row => {
+      if (p in unmerged) return { name: p, content: workdir[p], badge: "conflict", strike: !(p in workdir) };
       if (!(p in workdir)) return { name: p, badge: "deleted", strike: true };
       if (!repo || !(p in index)) return { name: p, content: workdir[p], badge: "untracked" };
       if (workdir[p] !== index[p]) return { name: p, content: workdir[p], badge: "modified" };
       return { name: p, content: workdir[p] };
     });
 
-  const stageRows: Row[] = allPaths(index, tree).map((p) => {
+  const stageRows: Row[] = allPaths(index, tree).map((p): Row => {
+    if (p in unmerged) return { name: p, badge: "conflict" };
     if (!(p in index)) return { name: p, badge: "deleted", strike: true };
     if (index[p] !== tree[p]) return { name: p, content: index[p], badge: "staged" };
     return { name: p, content: index[p] };
@@ -81,13 +86,28 @@ export function FilePanel({ state }: { state: SimState }) {
       <div className="mb-3 flex flex-wrap items-center justify-between gap-2 px-1">
         <h2 className="font-semibold text-ink">ফাইলের অবস্থা</h2>
         <ul className="flex flex-wrap gap-1.5 text-[11px]" aria-label="রঙের মানে">
-          {(["untracked", "modified", "staged"] as const).map((b) => (
+          {(repo?.merge ? (["untracked", "modified", "staged", "conflict"] as const) : (["untracked", "modified", "staged"] as const)).map((b) => (
             <li key={b} className={`rounded-full px-2 py-0.5 font-semibold ${BADGE[b].className}`}>
               {BADGE[b].label}
             </li>
           ))}
         </ul>
       </div>
+      {repo?.merge && (
+        <div role="status" className="mb-3 rounded-xl border border-[#B42318]/30 bg-[#FEF3F2] px-3 py-2 text-sm text-[#7A271A]">
+          {Object.keys(unmerged).length ? (
+            <>
+              <strong>merge চলছে:</strong> {repo.merge.branch} আনতে গিয়ে{" "}
+              {bn(Object.keys(unmerged).length)}টা ফাইলে conflict। ফাইল ঠিক করে <code className="font-mono">git add</code>, তারপর{" "}
+              <code className="font-mono">git commit</code>। বাতিল: <code className="font-mono">git merge --abort</code>
+            </>
+          ) : (
+            <>
+              <strong>সব conflict মেটানো শেষ।</strong> merge শেষ করতে <code className="font-mono">git commit</code> দিন।
+            </>
+          )}
+        </div>
+      )}
       <div className="grid grid-cols-1 gap-2 sm:grid-cols-3">
         <Column title="Working Directory" hint="আপনার ফোল্ডারের ফাইল" rows={workRows} empty="ফোল্ডার খালি। লিখুন: touch index.html" />
         <Column

@@ -23,14 +23,23 @@ const sameCommand = (a: string, b: string) => tokenize(a).tokens.join("\u0001") 
 
 const welcomeLines = (): TerminalLine[] => [{ id: 1, kind: "welcome", text: msg.welcome }];
 
+/** "আগের ধাপে ফেরা"-র জন্য: কোন কমান্ডের আগে state কেমন ছিল */
+interface PastEntry {
+  sim: SimState;
+  command: string;
+}
+
 interface Session {
   sim: SimState;
   lines: TerminalLine[];
   history: string[];
   step: number;
+  past: PastEntry[];
 }
 
-const freshSession = (): Session => ({ sim: EMPTY_STATE, lines: welcomeLines(), history: [], step: 0 });
+const MAX_UNDO = 30;
+
+const freshSession = (): Session => ({ sim: EMPTY_STATE, lines: welcomeLines(), history: [], step: 0, past: [] });
 
 export function Simulator() {
   const [session, setSession] = useState<Session>(freshSession);
@@ -43,7 +52,13 @@ export function Simulator() {
     const saved = loadSession();
     if (saved) {
       nextId.current = Math.max(1, ...saved.lines.map((l) => l.id)) + 1;
-      setSession({ sim: saved.sim, lines: saved.lines, history: saved.history, step: saved.step ?? 0 });
+      setSession({
+        sim: saved.sim,
+        lines: saved.lines,
+        history: saved.history,
+        step: saved.step ?? 0,
+        past: saved.past ?? [],
+      });
     }
     setLoaded(true);
   }, []);
@@ -68,6 +83,8 @@ export function Simulator() {
         const result = runCommand(s.sim, command);
         const history = s.history[s.history.length - 1] === command ? s.history : [...s.history, command];
         if (result.clearScreen) return { ...s, sim: result.state, lines: [], history };
+        // state বদলালে আগের অবস্থা জমিয়ে রাখি (immutable বলে শুধু রেফারেন্স রাখলেই হয়)
+        const past = result.state === s.sim ? s.past : [...s.past, { sim: s.sim, command }].slice(-MAX_UNDO);
 
         const lines = [...s.lines, input];
         if (result.output) lines.push({ id: id(), kind: result.ok ? "output" : "error", text: result.output });
@@ -80,11 +97,20 @@ export function Simulator() {
           step++;
           if (step === STARTER_STEPS.length) lines.push({ id: id(), kind: "welcome", text: msg.stepsDone });
         }
-        return { sim: result.state, lines, history, step };
+        return { sim: result.state, lines, history, step, past };
       });
     },
     [],
   );
+
+  const undo = useCallback(() => {
+    setSession((s) => {
+      const last = s.past[s.past.length - 1];
+      if (!last) return s;
+      const line: TerminalLine = { id: nextId.current++, kind: "welcome", text: msg.undoDone(last.command) };
+      return { ...s, sim: last.sim, past: s.past.slice(0, -1), lines: [...s.lines, line] };
+    });
+  }, []);
 
   const reset = () => {
     clearSession();
@@ -109,6 +135,20 @@ export function Simulator() {
             </div>
           </div>
           <div className="flex shrink-0 items-center gap-2">
+            <button
+              type="button"
+              onClick={undo}
+              disabled={session.past.length === 0}
+              title={
+                session.past.length
+                  ? `আগের ধাপে ফিরুন: ${session.past[session.past.length - 1].command}`
+                  : "ফেরার মতো কোনো ধাপ নেই"
+              }
+              aria-label="আগের ধাপে ফিরুন"
+              className="rounded-lg px-3 py-2 text-sm font-semibold text-teal ring-1 ring-teal/30 transition hover:bg-teal/5 disabled:cursor-not-allowed disabled:opacity-40 disabled:hover:bg-transparent"
+            >
+              ↶<span className="hidden sm:inline"> আগের ধাপে</span>
+            </button>
             <button
               type="button"
               onClick={() => run("help")}

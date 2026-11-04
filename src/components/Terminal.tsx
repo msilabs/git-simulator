@@ -3,6 +3,7 @@
 import { useEffect, useRef, useState, type KeyboardEvent } from "react";
 import type { TerminalLine } from "@/lib/storage";
 import { RichText } from "./RichText";
+import { OutputBlock } from "./OutputBlock";
 
 export interface Step {
   readonly command: string;
@@ -105,13 +106,15 @@ export function Terminal({ lines, history, prompt, steps, onRun }: TerminalProps
                 <span className="text-mint">{line.prompt}</span> <span>{line.text}</span>
               </>
             ) : line.kind === "explain" || line.kind === "explain-error" ? (
-              <div className="my-1 flex gap-2 border-l-2 border-current pl-2 text-[14px]">
+              <div className="my-1 border-l-2 border-current pl-2 text-[14px]">
                 <RichText text={line.text} />
               </div>
             ) : line.kind === "welcome" ? (
               <div className="mb-1 text-[15px]">
                 <RichText text={line.text} codeClassName="rounded bg-mint/15 px-1 font-mono text-mint" />
               </div>
+            ) : line.kind === "output" ? (
+              <OutputBlock text={line.text} />
             ) : (
               line.text
             )}
