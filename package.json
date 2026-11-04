@@ -1,7 +1,29 @@
 {
   "name": "git-simulator",
-  "version": "0.1.0",
+  "version": "2.0.0",
   "private": true,
+  "description": "Learn Git in the browser: a fake terminal, a live commit graph and Bengali explanations.",
+  "license": "MIT",
+  "author": "msilabs",
+  "homepage": "https://msilabs.github.io/git-simulator/",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/msilabs/git-simulator.git"
+  },
+  "bugs": {
+    "url": "https://github.com/msilabs/git-simulator/issues"
+  },
+  "keywords": [
+    "git",
+    "learning",
+    "simulator",
+    "bengali",
+    "bangla",
+    "education"
+  ],
+  "engines": {
+    "node": ">=20"
+  },
   "scripts": {
     "dev": "next dev",
     "build": "next build",

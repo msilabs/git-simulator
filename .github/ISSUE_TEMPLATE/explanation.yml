@@ -1,0 +1,21 @@
+name: Explanation is confusing / ব্যাখ্যা বোঝা যাচ্ছে না
+description: A Bengali explanation is unclear, wrong or could be friendlier / কোনো বাংলা ব্যাখ্যা অস্পষ্ট, ভুল বা আরও সহজ হতে পারে
+labels: [bengali-text]
+body:
+  - type: input
+    id: command
+    attributes:
+      label: Command / কোন কমান্ডের পর
+      placeholder: git merge feature
+    validations:
+      required: true
+  - type: textarea
+    id: current
+    attributes:
+      label: Current text / এখনকার লেখা
+    validations:
+      required: true
+  - type: textarea
+    id: suggestion
+    attributes:
+      label: Your suggestion / আপনার প্রস্তাব

@@ -1,0 +1,14 @@
+name: Feature or command request / নতুন ফিচার বা কমান্ড
+description: Suggest a new command or improvement / নতুন কমান্ড বা উন্নতির প্রস্তাব দিন
+labels: [enhancement]
+body:
+  - type: textarea
+    id: idea
+    attributes:
+      label: What would you like? / কী চান?
+    validations:
+      required: true
+  - type: textarea
+    id: why
+    attributes:
+      label: How would it help learners? / নতুনদের শেখায় কীভাবে কাজে লাগবে?

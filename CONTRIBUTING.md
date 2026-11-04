@@ -2,6 +2,8 @@
 
 Thanks for helping new developers learn Git! Contributions of every size are welcome: Bengali wording fixes, bug reports, tests and new commands.
 
+Please follow the [Code of Conduct](CODE_OF_CONDUCT.md). Issues and pull requests may be written in Bengali or English.
+
 ## Setup
 
 ```bash
@@ -45,4 +47,5 @@ npm run build      # must pass before a PR
 ## Commits and pull requests
 
 - Small, focused commits with conventional prefixes, e.g. `feat: add git restore`, `fix: status for deleted files`, `docs: ...`.
-- Describe what changed and how you tested it in the PR.
+- Describe what changed and how you tested it in the PR (the PR template has a checklist).
+- Add a line to `CHANGELOG.md` under an "Unreleased" heading.

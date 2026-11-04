@@ -1,12 +1,14 @@
 # Git Learning Simulator
 
+[![Deploy to GitHub Pages](https://github.com/msilabs/git-simulator/actions/workflows/pages.yml/badge.svg)](https://github.com/msilabs/git-simulator/actions/workflows/pages.yml) [![License: MIT](https://img.shields.io/badge/License-MIT-1ED6A8.svg)](LICENSE)
+
 A browser-based playground for learning Git without fear. Type Git commands into a fake terminal, watch the commit graph and file states update instantly, and read a short explanation in Bengali after every command.
 
 **Live:** https://msilabs.github.io/git-simulator/
 
 No real Git runs here. A small, pure TypeScript model of Git lives in `src/lib/git/`. There is no server, database or login, and your progress is saved in your browser's `localStorage`.
 
-![Screenshot of the simulator after a branch and merge](docs/screenshot.png)
+![Screenshot of the simulator during a merge conflict](docs/screenshot.png)
 
 ## Supported commands
 
@@ -96,6 +98,13 @@ State is immutable: every command returns a new `SimState`, so features like und
 4. Add `tests/<name>.test.ts`. When unsure, match real Git's behaviour and output. If you simplify, say so in a code comment.
 
 See [CONTRIBUTING.md](CONTRIBUTING.md) for details.
+
+## Community
+
+- [Changelog](CHANGELOG.md)
+- [Code of Conduct](CODE_OF_CONDUCT.md)
+- [Security policy](SECURITY.md)
+- Found a bug, a confusing Bengali explanation, or output that differs from real Git? [Open an issue](https://github.com/msilabs/git-simulator/issues/new/choose).
 
 ## বাংলায় সংক্ষেপে
 

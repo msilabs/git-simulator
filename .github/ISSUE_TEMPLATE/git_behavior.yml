@@ -1,0 +1,26 @@
+name: Differs from real Git / আসল Git-এর সাথে মেলে না
+description: The simulator's output or behavior differs from real Git / সিমুলেটরের আউটপুট বা আচরণ আসল Git থেকে আলাদা
+labels: [git-accuracy]
+body:
+  - type: textarea
+    id: commands
+    attributes:
+      label: Commands / কমান্ড
+      render: shell
+    validations:
+      required: true
+  - type: textarea
+    id: simulator
+    attributes:
+      label: Simulator output / সিমুলেটরের আউটপুট
+      render: text
+    validations:
+      required: true
+  - type: textarea
+    id: real
+    attributes:
+      label: Real Git output / আসল Git-এর আউটপুট
+      description: Include your `git --version`. / আপনার `git --version`-ও দিন।
+      render: text
+    validations:
+      required: true

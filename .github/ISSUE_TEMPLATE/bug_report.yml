@@ -1,0 +1,30 @@
+name: Bug report / সমস্যা জানান
+description: Something is broken or looks wrong / কিছু কাজ করছে না বা ভুল দেখাচ্ছে
+labels: [bug]
+body:
+  - type: textarea
+    id: commands
+    attributes:
+      label: Commands you typed / যে কমান্ডগুলো দিয়েছিলেন
+      description: Copy them from the terminal, in order. / টার্মিনাল থেকে ক্রমানুসারে কপি করুন।
+      render: shell
+    validations:
+      required: true
+  - type: textarea
+    id: expected
+    attributes:
+      label: What you expected / কী হবে ভেবেছিলেন
+    validations:
+      required: true
+  - type: textarea
+    id: actual
+    attributes:
+      label: What happened / আসলে কী হলো
+      description: Screenshots help. / স্ক্রিনশট দিলে সুবিধা হয়।
+    validations:
+      required: true
+  - type: input
+    id: device
+    attributes:
+      label: Browser and device / ব্রাউজার আর ডিভাইস
+      placeholder: Chrome on Android, Firefox on Windows ...
