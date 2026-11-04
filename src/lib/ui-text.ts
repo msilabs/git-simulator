@@ -16,7 +16,6 @@ export const ui = {
   undoNone: "ফেরার মতো কোনো ধাপ নেই",
   help: "help",
   reset: "নতুন করে শুরু",
-  resetShort: "শুরু",
   saveFailed: "অগ্রগতি সেভ হচ্ছে না। ব্রাউজারের স্টোরেজ বন্ধ বা ভরা থাকতে পারে; পেজ বন্ধ করলে কাজ হারাবে।",
   loadFailed: "আগের সেভ করা অবস্থা পড়া যায়নি, তাই নতুন করে শুরু হলো।",
 
@@ -56,9 +55,10 @@ export const ui = {
   deletedFile: "(ফাইলটা মুছে গেছে)",
   showContent: (name: string) => `${name}-এর লেখা দেখুন`,
   mergeBannerTitle: "merge চলছে:",
-  mergeBanner: (branch: string, count: number) => ` ${branch} আনতে গিয়ে ${bn(count)}টা ফাইলে conflict। ফাইল ঠিক করে `,
+  mergeBanner: (branch: string, count: number) =>
+    `${branch} আনতে গিয়ে ${bn(count)}টা ফাইলে conflict। ফাইল ঠিক করে \`git add\`, তারপর \`git commit\`। বাতিল: \`git merge --abort\``,
   mergeResolvedTitle: "সব conflict মেটানো শেষ।",
-  mergeResolved: " merge শেষ করতে ",
+  mergeResolved: "merge শেষ করতে `git commit` দিন।",
 
   /* গ্রাফ */
   graphTitle: "Commit গ্রাফ",

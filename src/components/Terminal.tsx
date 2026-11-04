@@ -4,6 +4,7 @@ import { useEffect, useRef, useState, type KeyboardEvent } from "react";
 import type { TerminalLine } from "@/lib/storage";
 import { RichText } from "./RichText";
 import { OutputBlock } from "./OutputBlock";
+import { ui } from "@/lib/ui-text";
 
 export interface Step {
   readonly command: string;
@@ -77,23 +78,24 @@ export function Terminal({ lines, history, prompt, steps, onRun }: TerminalProps
   };
 
   const nextStep = steps.findIndex((s) => !s.done);
+  // screen reader-এর জন্য: পুরো টার্মিনাল নয়, শুধু শেষ ব্যাখ্যাটা ঘোষণা করি
+  const lastExplanation = [...lines].reverse().find((l) => l.kind !== "input" && l.kind !== "output" && l.kind !== "error");
 
   return (
     <section
-      aria-label="টার্মিনাল"
+      aria-label={ui.terminal}
       className="flex h-full min-h-0 flex-col overflow-hidden rounded-2xl bg-ink shadow-lg ring-1 ring-white/10"
     >
       <div className="flex items-center gap-2 border-b border-white/10 px-4 py-2.5">
         <span className="h-3 w-3 rounded-full bg-[#FF5F57]" aria-hidden />
         <span className="h-3 w-3 rounded-full bg-sun" aria-hidden />
         <span className="h-3 w-3 rounded-full bg-mint" aria-hidden />
-        <h2 className="ml-2 text-sm font-semibold text-slate-200">টার্মিনাল</h2>
+        <h2 className="ml-2 text-sm font-semibold text-slate-200">{ui.terminal}</h2>
       </div>
 
       <div
         ref={scrollRef}
-        role="log"
-        aria-live="polite"
+        aria-label={ui.terminal}
         className="terminal-scroll relative min-h-0 flex-1 cursor-text overflow-y-auto px-4 py-3 font-mono text-[13px] leading-relaxed"
         onClick={() => {
           if (!window.getSelection()?.toString()) inputRef.current?.focus();
@@ -137,16 +139,20 @@ export function Terminal({ lines, history, prompt, steps, onRun }: TerminalProps
             autoCorrect="off"
             spellCheck={false}
             enterKeyHint="send"
-            aria-label="কমান্ড লিখুন"
+            aria-label={ui.inputLabel}
             className="min-w-0 flex-1 bg-transparent text-[16px] text-white caret-sun outline-none sm:text-[13px]"
-            placeholder={lines.length <= 2 ? "এখানে লিখুন…" : ""}
+            placeholder={lines.length <= 2 ? ui.inputPlaceholder : ""}
           />
         </label>
       </div>
 
+      <p className="sr-only" aria-live="polite" aria-atomic="true">
+        {lastExplanation?.text.replace(/`/g, "")}
+      </p>
+
       {nextStep !== -1 && (
         <div className="border-t border-white/10 px-4 py-3">
-          <p className="mb-2 text-xs font-medium text-slate-300">প্রথম ৫টা কমান্ড (ক্লিক করলেই চলবে):</p>
+          <p className="mb-2 text-xs font-medium text-slate-300">{ui.stepsTitle}</p>
           <ol className="flex flex-wrap items-center gap-1.5">
             {steps.map((step, i) => (
               <li key={step.command} className="flex items-center gap-1.5">
@@ -164,7 +170,7 @@ export function Terminal({ lines, history, prompt, steps, onRun }: TerminalProps
                         : "bg-white/5 text-slate-300 hover:bg-white/10"
                   }`}
                 >
-                  {step.done ? "✓ " : `${"১২৩৪৫"[i]}. `}
+                  {step.done ? "✓ " : ui.stepNumber(i)}
                   {step.command}
                 </button>
                 {i < steps.length - 1 && <span className="text-slate-500" aria-hidden>→</span>}
