@@ -3,6 +3,17 @@ import { layoutGraph, LANE_COLORS } from "../src/lib/graph/layout";
 import { repoOf, state, ONE_COMMIT } from "./setup";
 
 describe("graph layout", () => {
+  it("shows at most three labels per commit and grows the top padding", () => {
+    const one = layoutGraph(repoOf(state(ONE_COMMIT)));
+    const many = layoutGraph(repoOf(state([...ONE_COMMIT, "git branch a", "git branch b", "git branch c", "git branch d"])));
+    expect(many.labels.map((l) => l.branch)).toEqual(["main", "a", "+3"]);
+    expect(many.labels[2].hidden).toEqual(["b", "c", "d"]);
+    expect(many.padTop).toBeGreaterThan(one.padTop);
+    // সবচেয়ে ওপরের লেবেলও SVG-র ভেতরে থাকে (y >= 0)
+    const topLabelY = many.padTop - 13 - 10 - 20 - 2 * 24;
+    expect(topLabelY).toBeGreaterThanOrEqual(0);
+  });
+
   it("is empty without commits", () => {
     expect(layoutGraph(null).nodes).toEqual([]);
     expect(layoutGraph(repoOf(state(["git init"]))).nodes).toEqual([]);

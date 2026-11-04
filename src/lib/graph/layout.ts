@@ -14,7 +14,12 @@ export const LANE_COLORS = ["#1ED6A8", "#4F46E5", "#38BDF8", "#F472B6", "#A3E635
 export const GAP_X = 120;
 export const GAP_Y = 104;
 export const PAD_X = 64;
+/** ওপরের ন্যূনতম ফাঁক; লেবেল বেশি হলে layout নিজে বাড়ায় (`padTop`) */
 export const PAD_TOP = 70;
+/** একই commit-এ এর বেশি branch হলে বাকিগুলো একটা "+N" চিপে যায় */
+export const MAX_LABELS = 3;
+export const LABEL_STEP = 24;
+const NODE_CLEARANCE = 23;
 export const PAD_BOTTOM = 56;
 
 export interface NodeLayout {
@@ -43,6 +48,8 @@ export interface LabelLayout {
   readonly color: string;
   /** একই commit-এ একাধিক branch হলে কততম (০ = node-এর ঠিক ওপরে) */
   readonly stack: number;
+  /** থাকলে এটা "+N" চিপ, যেখানে এই branch-গুলো লুকানো আছে */
+  readonly hidden?: readonly string[];
 }
 
 export interface GraphLayout {
@@ -52,6 +59,8 @@ export interface GraphLayout {
   readonly width: number;
   readonly height: number;
   readonly lanes: number;
+  /** প্রথম লেনের y; লেবেলের স্তূপ যেন ওপরে কেটে না যায় */
+  readonly padTop: number;
 }
 
 export function laneColor(lane: number): string {
@@ -72,11 +81,24 @@ export function layoutGraph(repo: Repo | null): GraphLayout {
         .sort((a, b) => a.time - b.time)
     : [];
   if (!repo || commits.length === 0) {
-    return { nodes: [], edges: [], labels: [], width: 0, height: 0, lanes: 0 };
+    return { nodes: [], edges: [], labels: [], width: 0, height: 0, lanes: 0, padTop: PAD_TOP };
   }
 
   const laneOf = new Map<string, number>();
   for (const c of commits) if (!laneOf.has(c.branch)) laneOf.set(c.branch, laneOf.size);
+
+  // প্রতিটা commit-এ কোন branch-গুলো: HEAD-এর branch আগে, বাকিগুলো বর্ণানুক্রমে
+  const byCommit = new Map<string, string[]>();
+  const branchNames = Object.keys(repo.branches).sort((a, b) =>
+    a === repo.head ? -1 : b === repo.head ? 1 : a.localeCompare(b),
+  );
+  for (const name of branchNames) {
+    const id = repo.branches[name];
+    byCommit.set(id, [...(byCommit.get(id) ?? []), name]);
+  }
+  const visibleCount = (n: number) => Math.min(n, MAX_LABELS);
+  const maxStack = Math.max(1, ...[...byCommit.values()].map((names) => visibleCount(names.length)));
+  const padTop = Math.max(PAD_TOP, NODE_CLEARANCE + maxStack * LABEL_STEP + 16);
 
   const pos = new Map<string, NodeLayout>();
   const nodes = commits.map((c, i) => {
@@ -85,7 +107,7 @@ export function layoutGraph(repo: Repo | null): GraphLayout {
       id: c.id,
       message: c.message.split("\n")[0],
       x: PAD_X + i * GAP_X,
-      y: PAD_TOP + lane * GAP_Y,
+      y: padTop + lane * GAP_Y,
       lane,
       color: laneColor(lane),
       isMerge: c.parents.length > 1,
@@ -111,16 +133,17 @@ export function layoutGraph(repo: Repo | null): GraphLayout {
   }
 
   const labels: LabelLayout[] = [];
-  const stackCount = new Map<string, number>();
-  const branchNames = Object.keys(repo.branches).sort((a, b) =>
-    a === repo.head ? -1 : b === repo.head ? 1 : a.localeCompare(b),
-  );
-  for (const name of branchNames) {
-    const id = repo.branches[name];
-    const stack = stackCount.get(id) ?? 0;
-    stackCount.set(id, stack + 1);
-    const lane = laneOf.get(name) ?? pos.get(id)!.lane;
-    labels.push({ branch: name, commitId: id, isHead: name === repo.head, color: laneColor(lane), stack });
+  for (const [id, names] of byCommit) {
+    const node = pos.get(id)!;
+    const shown = names.length > MAX_LABELS ? names.slice(0, MAX_LABELS - 1) : names;
+    shown.forEach((name, stack) => {
+      const lane = laneOf.get(name) ?? node.lane;
+      labels.push({ branch: name, commitId: id, isHead: name === repo.head, color: laneColor(lane), stack });
+    });
+    if (shown.length < names.length) {
+      const hidden = names.slice(shown.length);
+      labels.push({ branch: `+${hidden.length}`, commitId: id, isHead: false, color: "#5B6782", stack: shown.length, hidden });
+    }
   }
 
   const lanes = laneOf.size;
@@ -129,7 +152,8 @@ export function layoutGraph(repo: Repo | null): GraphLayout {
     edges,
     labels,
     width: PAD_X * 2 + (commits.length - 1) * GAP_X,
-    height: PAD_TOP + (lanes - 1) * GAP_Y + PAD_BOTTOM,
+    height: padTop + (lanes - 1) * GAP_Y + PAD_BOTTOM,
     lanes,
+    padTop,
   };
 }
