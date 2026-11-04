@@ -2,6 +2,8 @@
 
 A browser-based playground for learning Git without fear. Type Git commands into a fake terminal, watch the commit graph and file states update instantly, and read a short explanation in Bengali after every command.
 
+**Live:** https://msilabs.github.io/git-simulator/
+
 No real Git runs here. A small, pure TypeScript model of Git lives in `src/lib/git/`. There is no server, database or login, and your progress is saved in your browser's `localStorage`.
 
 ![Screenshot of the simulator after a branch and merge](docs/screenshot.png)
@@ -60,10 +62,11 @@ Requires Node.js 20 or newer.
 npm install
 npm run dev      # http://localhost:3000
 npm test         # Vitest
-npm run build    # static production build
+npm run build    # static export into out/
+npm start        # preview the built site from out/
 ```
 
-The site is fully static and deploys to Vercel as-is.
+The site is a fully static export (`output: "export"`). Every push to `main` runs the tests and deploys to GitHub Pages through `.github/workflows/pages.yml`, which builds with `BASE_PATH=/git-simulator`. Vercel also works without any changes.
 
 ## Project layout
 
@@ -97,6 +100,8 @@ See [CONTRIBUTING.md](CONTRIBUTING.md) for details.
 ## বাংলায় সংক্ষেপে
 
 **Git শেখার সিমুলেটর** হলো নতুন ডেভেলপারদের জন্য একটা ফ্রি, ওপেন-সোর্স অনুশীলনের জায়গা। ব্রাউজারের নকল টার্মিনালে Git কমান্ড লিখুন। পাশে commit গ্রাফ আর ফাইলের অবস্থা সাথে সাথে বদলাবে, আর প্রতিটা কমান্ডের পর বাংলায় ছোট ব্যাখ্যা আসবে: কী ঘটল আর কেন। এখানে আসল Git চলে না, তাই ভুল করলেও কিছু নষ্ট হবে না। ওপরের "নতুন করে শুরু" বোতাম চাপলেই আবার প্রথম থেকে শুরু করা যায়।
+
+অনলাইনে চালান: https://msilabs.github.io/git-simulator/
 
 শুরু করতে লিখুন `git init`, তারপর টার্মিনালের নিচের "প্রথম ৫টা কমান্ড" ধাপগুলো অনুসরণ করুন।
 
