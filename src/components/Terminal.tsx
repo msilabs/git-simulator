@@ -95,7 +95,7 @@ export function Terminal({ lines, history, prompt, steps, onRun }: TerminalProps
 
       <div
         ref={scrollRef}
-        aria-label={ui.terminal}
+        data-testid="terminal-log"
         className="terminal-scroll relative min-h-0 flex-1 cursor-text overflow-y-auto px-4 py-3 font-mono text-[13px] leading-relaxed"
         onClick={() => {
           if (!window.getSelection()?.toString()) inputRef.current?.focus();

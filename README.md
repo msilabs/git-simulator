@@ -63,10 +63,13 @@ Requires Node.js 20 or newer.
 ```bash
 npm install
 npm run dev      # http://localhost:3000
-npm test         # Vitest
+npm test         # Vitest unit tests (Git model, session, storage)
 npm run build    # static export into out/
 npm start        # preview the built site from out/
+npm run test:e2e # Playwright browser tests against out/ (run the build first)
 ```
+
+Every pull request runs lint, type-check, unit tests, the build and the browser tests in CI (`.github/workflows/ci.yml`).
 
 The site is a fully static export (`output: "export"`). Every push to `main` runs the tests and deploys to GitHub Pages through `.github/workflows/pages.yml`, which builds with `BASE_PATH=/git-simulator`. Vercel also works without any changes.
 

@@ -13,6 +13,7 @@ npm test           # run all Vitest tests once
 npm run test:watch # re-run tests on change
 npm run lint
 npm run build      # must pass before a PR
+npm run test:e2e   # browser tests (desktop + phone) against the build
 ```
 
 ## Code style
