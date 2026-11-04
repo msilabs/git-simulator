@@ -20,18 +20,22 @@ export function Simulator() {
   const [confirmReset, setConfirmReset] = useState(false);
   const dialogRef = useRef<HTMLDivElement>(null);
 
-  // প্রথমবার: সেভ করা অবস্থা ফিরিয়ে আনা (সার্ভারে localStorage নেই, তাই useEffect-এ)
+  // প্রথমবার: সেভ করা অবস্থা ফিরিয়ে আনা। localStorage একটা বাইরের সিস্টেম, আর সার্ভারে নেই;
+  // hydration-এর আগে পড়লে সার্ভারের HTML আর প্রথম রেন্ডার মিলবে না, তাই effect-এ পড়ি।
   useEffect(() => {
     const result = loadSession();
+    /* eslint-disable react-hooks/set-state-in-effect -- বাইরের স্টোরেজের সাথে একবার মেলানো */
     if (result.status === "ok") setSession(result.session);
     else if (result.status === "corrupt") {
       clearSession();
       setSession(freshSession(`${ui.loadFailed} ${msg.welcome}`));
     }
     setLoaded(true);
+    /* eslint-enable react-hooks/set-state-in-effect */
   }, []);
 
   useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- সেভ সফল হলো কি না, বাইরের স্টোরেজ থেকে জানা যায়
     if (loaded) setSaveFailed(!saveSession(session));
   }, [session, loaded]);
 

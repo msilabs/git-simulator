@@ -16,7 +16,7 @@ export default defineConfig({
     { name: "phone", use: { ...devices["Pixel 7"] } },
   ],
   webServer: {
-    command: "npx serve out -l 4321 --no-clipboard",
+    command: "node scripts/serve.mjs 4321",
     url: "http://localhost:4321",
     reuseExistingServer: !process.env.CI,
   },

@@ -65,7 +65,7 @@ npm install
 npm run dev      # http://localhost:3000
 npm test         # Vitest unit tests (Git model, session, storage)
 npm run build    # static export into out/
-npm start        # preview the built site from out/
+npm start        # preview the built site from out/ (tiny Node server in scripts/serve.mjs)
 npm run test:e2e # Playwright browser tests against out/ (run the build first)
 ```
 
