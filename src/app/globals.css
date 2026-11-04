@@ -1,26 +1,95 @@
 @import "tailwindcss";
 
-:root {
-  --background: #ffffff;
-  --foreground: #171717;
+/* msilabs ব্র্যান্ডের রং */
+@theme {
+  --color-mint: #1ed6a8;
+  --color-ink: #14213d;
+  --color-ink-2: #1b2b4d;
+  --color-ink-3: #24365e;
+  --color-teal: #0b7f6e;
+  --color-sun: #ffb020;
+  --color-indigo: #4f46e5;
+  --color-slate: #5b6782;
+  --color-cloud: #f5f7fb;
+  --color-danger: #ff8a8a;
 }
 
+/* ফন্টের ভ্যারিয়েবল next/font <body>-তে বসায়, তাই inline রাখতে হয় */
 @theme inline {
-  --color-background: var(--background);
-  --color-foreground: var(--foreground);
-  --font-sans: var(--font-geist-sans);
-  --font-mono: var(--font-geist-mono);
+  --font-sans: var(--font-bengali), system-ui, sans-serif;
+  --font-mono: var(--font-code), var(--font-bengali), ui-monospace, monospace;
 }
 
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
-  }
+:root {
+  color-scheme: light;
+}
+
+html,
+body {
+  background: var(--color-cloud);
+  color: var(--color-ink);
 }
 
 body {
-  background: var(--background);
-  color: var(--foreground);
-  font-family: Arial, Helvetica, sans-serif;
+  font-family: var(--font-sans);
+}
+
+/* নতুন commit এলে ছোট "পপ" অ্যানিমেশন */
+@keyframes commit-pop {
+  0% {
+    transform: scale(0);
+    opacity: 0;
+  }
+  70% {
+    transform: scale(1.25);
+    opacity: 1;
+  }
+  100% {
+    transform: scale(1);
+  }
+}
+
+.commit-pop {
+  transform-box: fill-box;
+  transform-origin: center;
+  animation: commit-pop 0.45s ease-out both;
+}
+
+@keyframes edge-draw {
+  from {
+    stroke-dashoffset: 1;
+  }
+  to {
+    stroke-dashoffset: 0;
+  }
+}
+
+.edge-draw {
+  stroke-dasharray: 1;
+  animation: edge-draw 0.45s ease-out both;
+}
+
+.graph-move {
+  transition: transform 0.4s ease;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .commit-pop,
+  .edge-draw {
+    animation: none;
+  }
+  .graph-move {
+    transition: none;
+  }
+}
+
+.terminal-scroll::-webkit-scrollbar,
+.graph-scroll::-webkit-scrollbar {
+  height: 8px;
+  width: 8px;
+}
+.terminal-scroll::-webkit-scrollbar-thumb,
+.graph-scroll::-webkit-scrollbar-thumb {
+  background: #2c4170;
+  border-radius: 8px;
 }

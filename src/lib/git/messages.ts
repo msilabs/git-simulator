@@ -135,6 +135,10 @@ export const msg = {
   catShown: (name: string) => `ওপরে ${name}-এর লেখা।`,
   helpShown: "যেকোনো কমান্ড লিখে Enter চাপুন। ↑/↓ দিয়ে আগের কমান্ড ফিরিয়ে আনা যায়।",
 
+  /* ---------- শুরুর ধাপ ---------- */
+  stepsDone:
+    "দারুণ! প্রথম ৫টা কমান্ড শেষ। এবার branch চেষ্টা করুন: `git switch -c feature`, তারপর একটা commit, তারপর `git switch main` আর `git merge feature`।",
+
   /* ---------- reset বোতাম ---------- */
   resetDone: "সব মুছে নতুন করে শুরু হলো। শুরু করতে লিখুন: `git init`",
 } as const;
