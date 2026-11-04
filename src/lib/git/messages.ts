@@ -104,14 +104,84 @@ export const msg = {
     `${current} শুধু সামনে এগিয়ে ${target}-এর commit-এ গেল, নতুন commit লাগেনি (fast-forward)।`,
   mergeCommit: (current: string, target: string, id: string) =>
     `দুই দিকেই নতুন commit ছিল, তাই Git দুটোকে মিলিয়ে নতুন merge commit ${id} বানাল। এর দুটো parent: ${current}-এর আগের commit আর ${target}-এর commit।`,
-  mergeConflict: (paths: readonly string[]) =>
-    `${list(paths)} ফাইলটা দুই branch-এই বদলানো হয়েছে, তাই Git নিজে থেকে মেলাতে পারছে না। এই অবস্থা (merge conflict) পরের ভার্সনে আসছে। আপাতত merge বাতিল হলো, কিছু বদলায়নি।`,
+  mergeConflict: (paths: readonly string[], target: string) =>
+    `${list(paths)}-এ দুই branch একই জায়গা আলাদাভাবে বদলেছে, তাই Git নিজে মেলাতে পারল না (merge conflict)। ভয় নেই, কিছু হারায়নি! \`cat ${paths[0]}\` দিয়ে দেখুন: <<<<<<< HEAD-এর নিচে আপনার অংশ, ======= এর পরে ${target}-এর অংশ। \`edit\` দিয়ে যেমন রাখতে চান লিখুন, তারপর \`git add ${paths[0]}\` আর \`git commit\`। বাতিল করতে \`git merge --abort\`।`,
+  mergeAutoMerged: (paths: readonly string[]) =>
+    `${list(paths)}-এ দুই দিকের বদল আলাদা লাইনে ছিল, তাই Git নিজেই মিলিয়ে নিল।`,
   mergeBlocked: (paths: readonly string[]) =>
     `merge আটকে গেল। ${list(paths)}-এ commit না করা পরিবর্তন আছে, merge করলে সেগুলো মুছে যেত। আগে commit করুন।`,
   mergeBlockedUntracked: (paths: readonly string[]) =>
     `merge আটকে গেল। ${list(paths)} এখানে untracked, কিন্তু merge করলে একই নামের ফাইল আসত। আগে ফাইলটা commit করুন।`,
   mergeNoCommits: "এখনো কোনো commit নেই, তাই merge করার কিছু নেই। আগে commit করুন।",
   mergeTooMany: "সিমুলেটরে একবারে একটা branch-ই merge করা যায়।",
+  mergeInProgressUnmerged:
+    "আগের merge এখনো শেষ হয়নি, কিছু conflict মেটানো বাকি। আগে conflict মেটিয়ে `git add` আর `git commit` করুন, অথবা `git merge --abort`।",
+  mergeInProgressResolved: "আগের merge-এর সব conflict মেটানো হয়েছে, এখন শুধু `git commit` দিয়ে শেষ করুন।",
+  mergeAbortNone: "এখন কোনো merge চলছে না, তাই বাতিল করার কিছু নেই।",
+  mergeAborted: "merge বাতিল হলো। সব ফাইল merge শুরুর আগের অবস্থায় ফিরে গেল, যেন কিছুই হয়নি।",
+  mergeContinueNone: "এখন কোনো merge চলছে না।",
+
+  /* ---------- merge conflict চলাকালীন ---------- */
+  statusMerging: (unmerged: number) =>
+    unmerged
+      ? `merge চলছে। ${bn(unmerged)}টা ফাইলে conflict মেটানো বাকি ("Unmerged paths")। ফাইল ঠিক করে \`git add <file>\` দিন।`
+      : "merge চলছে, সব conflict মেটানো হয়েছে। এখন `git commit` দিলে merge commit তৈরি হবে।",
+  commitUnmerged: (paths: readonly string[]) =>
+    `${list(paths)}-এর conflict এখনো মেটানো হয়নি। ফাইল ঠিক করে \`git add ${paths[0]}\` দিন, তারপর commit করুন।`,
+  commitMergeDone: (id: string, branch: string, target: string) =>
+    `merge শেষ! নতুন merge commit ${id} তৈরি হলো, এর দুটো parent: ${branch}-এর আগের commit আর ${target}-এর commit।`,
+  addResolved: (paths: readonly string[]) => `${list(paths)}-এর conflict মেটানো হয়েছে বলে চিহ্নিত হলো।`,
+  addResolvedAll: "সব conflict মেটানো শেষ। এখন `git commit` দিয়ে merge শেষ করুন।",
+  addStillMarkers: (paths: readonly string[]) =>
+    `সাবধান: ${list(paths)}-এ এখনো <<<<<<< বা >>>>>>> চিহ্ন আছে। Git আপত্তি করবে না, কিন্তু সাধারণত এগুলো মুছে ফেলতে হয়।`,
+  switchMerging: "merge চলাকালীন branch বদলানো যায় না। আগে conflict মিটিয়ে `git commit` দিন, অথবা `git merge --abort`।",
+
+  /* ---------- diff ---------- */
+  diffNone: "কোনো পার্থক্য নেই: working directory আর staging area একই। (নতুন untracked ফাইল git diff-এ দেখায় না।)",
+  diffNoneStaged: "staging area আর শেষ commit একই, তাই commit-এ যাওয়ার মতো নতুন কিছু নেই।",
+  diffShown:
+    "এটা working directory বনাম staging area: এখনো staged নয় এমন বদল। `-` লাইন বাদ গেছে, `+` লাইন যোগ হয়েছে। staged বদল দেখতে `git diff --staged`।",
+  diffShownStaged: "এটা staging area বনাম শেষ commit: পরের commit-এ ঠিক এই বদলগুলো যাবে।",
+  diffUnknownPath: (path: string) => `${path} নামে কোনো ফাইল নেই। \`ls\` দিয়ে তালিকা দেখুন।`,
+  diffRevisionUnsupported: (arg: string) =>
+    `\`${arg}\` দিয়ে commit বা branch তুলনা এখনো সিমুলেটরে নেই। এখন শুধু \`git diff\` আর \`git diff --staged\` চলে।`,
+
+  /* ---------- restore ---------- */
+  restoreMissingArg: "কোন ফাইল ফেরাবেন তা বলুন, যেমন `git restore index.html`, অথবা সবকিছুর জন্য `git restore .`",
+  restoreNoMatch: (path: string) =>
+    `${path} Git চেনে না (untracked বা নেই), তাই ফেরানোর মতো কোনো আগের অবস্থা নেই।`,
+  restoreUnmerged: (path: string) =>
+    `${path}-এ conflict চলছে। আগে ফাইল ঠিক করে \`git add ${path}\` দিন, অথবা পুরো merge বাতিল করতে \`git merge --abort\`।`,
+  restoreWorktree: (paths: readonly string[]) =>
+    `${list(paths)} staging area-র অবস্থায় ফিরে গেল; commit না করা বদল মুছে গেল। সাবধান: আসল Git-এ এভাবে মোছা বদল আর ফেরত পাওয়া যায় না।`,
+  restoreStaged: (paths: readonly string[]) =>
+    `${list(paths)} staging area থেকে নামানো হলো (unstage)। ফাইলের লেখা বদলায়নি, শুধু পরের commit-এ আর যাবে না।`,
+  restoreNothing: "ফেরানোর মতো কিছু নেই, সব আগে থেকেই মিলে আছে।",
+
+  /* ---------- branch -d / -m ---------- */
+  branchDeleteMissing: "কোন branch মুছবেন তার নাম দিন, যেমন `git branch -d feature`।",
+  branchDeleted: (name: string, id: string) =>
+    `branch ${name} মুছে গেল। তার commit-গুলো হারায়নি; সেগুলো অন্য branch-এ merge করা আছে। (শেষ commit ছিল ${id})`,
+  branchForceDeleted: (name: string, id: string) =>
+    `branch ${name} জোর করে মুছে গেল (-D)। এর যে commit অন্য কোনো branch-এ নেই, সেগুলো গ্রাফ থেকে লুকিয়ে গেল। (শেষ commit ছিল ${id})`,
+  branchNotFound: (name: string) => `${name} নামে কোনো branch নেই। তালিকা দেখতে \`git branch\`।`,
+  branchDeleteCurrent: (name: string) =>
+    `আপনি এখন ${name}-এ আছেন, তাই এটাকে মোছা যাবে না। আগে অন্য branch-এ যান, যেমন \`git switch main\`।`,
+  branchNotMerged: (name: string) =>
+    `${name}-এর কিছু commit এখনো বর্তমান branch-এ merge হয়নি, মুছলে সেগুলো হারিয়ে যাবে। আগে \`git merge ${name}\` করুন, অথবা নিশ্চিত হলে \`git branch -D ${name}\`।`,
+  branchRenameMissing: "নতুন নাম দিন, যেমন `git branch -m new-name` (বর্তমান branch) বা `git branch -m old new`।",
+  branchRenamed: (from: string, to: string) => `branch ${from}-এর নাম বদলে ${to} হলো। commit-গুলো একই আছে।`,
+
+  /* ---------- rm (সহায়ক) ---------- */
+  rmMissingArg: "কোন ফাইল মুছবেন তার নাম দিন, যেমন `rm notes.txt`।",
+  rmMissing: (name: string) => `${name} নামে কোনো ফাইল নেই।`,
+  rmDone: (paths: readonly string[], tracked: boolean) =>
+    tracked
+      ? `${list(paths)} ফোল্ডার থেকে মুছে গেল। Git দেখছে ফাইলটা নেই (deleted); commit-এ নিতে \`git add ${paths[0]}\`।`
+      : `${list(paths)} ফোল্ডার থেকে মুছে গেল।`,
+
+  /* ---------- আগের ধাপে ফেরা ---------- */
+  undoDone: (command: string) => `↶ আগের ধাপে ফেরা হলো। \`${command}\`-এর আগের অবস্থায় আছেন। (এটা সিমুলেটরের সুবিধা; আসল Git-এ এমন এক-ক্লিক undo নেই।)`,
 
   /* ---------- সহায়ক কমান্ড ---------- */
   touchMissingArg: "কোন ফাইল বানাবেন তার নাম দিন, যেমন `touch index.html`।",
@@ -154,10 +224,16 @@ export const HELP_ENTRIES: ReadonlyArray<readonly [string, string]> = [
   ["git switch [-c] <name>", "অন্য branch-এ যায় (-c দিলে নতুন বানিয়ে)"],
   ["git checkout [-b] <name>", "switch-এর পুরোনো রূপ (-b দিলে নতুন বানিয়ে)"],
   ["git merge <branch>", "অন্য branch-এর কাজ বর্তমান branch-এ আনে"],
+  ["git merge --abort", "conflict-এ থেমে থাকা merge বাতিল করে"],
+  ["git diff [--staged]", "কোন লাইন বদলেছে দেখায় (staged নয় / staged)"],
+  ["git restore [--staged] <file>", "ফাইলের বদল বাদ দেয় / staging থেকে নামায়"],
+  ["git branch -d|-D <name>", "branch মোছে (-D জোর করে)"],
+  ["git branch -m [<old>] <new>", "branch-এর নাম বদলায়"],
   ["touch <file>", "খালি নতুন ফাইল বানায়"],
   ['edit <file> "লেখা"', "ফাইলের লেখা বদলায় (না থাকলে বানায়)"],
   ["ls", "ফাইলের তালিকা দেখায়"],
   ["cat <file>", "ফাইলের লেখা দেখায়"],
+  ["rm <file>", "ফোল্ডার থেকে ফাইল মোছে"],
   ["help", "এই তালিকা দেখায়"],
   ["clear", "টার্মিনাল পরিষ্কার করে (ফাইল বা commit মোছে না)"],
 ];

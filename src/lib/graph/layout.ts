@@ -1,11 +1,13 @@
 /**
  * commit গ্রাফের লেআউট (pure function, React ছাড়া)।
  * - x: commit-এর ক্রমিক সময় অনুযায়ী বাঁ থেকে ডানে
+ * - শুধু কোনো branch থেকে পৌঁছানো যায় এমন commit দেখায়
  * - y (লেন): commit-টা যে branch-এ বানানো হয়েছিল তার লেন; প্রথম যে branch-এ
  *   commit হয়েছে সেটা লেন ০, পরেরটা ১ ...। তাই fast-forward-এর পরেও commit-গুলো
  *   নিজের জায়গায় থাকে, শুধু branch-এর লেবেল সরে যায়।
  */
 import type { Repo } from "../git/types";
+import { ancestors } from "../git/helpers";
 
 export const LANE_COLORS = ["#1ED6A8", "#4F46E5", "#38BDF8", "#F472B6", "#A3E635"] as const;
 
@@ -57,7 +59,18 @@ export function laneColor(lane: number): string {
 }
 
 export function layoutGraph(repo: Repo | null): GraphLayout {
-  const commits = repo ? Object.values(repo.commits).sort((a, b) => a.time - b.time) : [];
+  // কোনো branch (বা চলমান merge) থেকে পৌঁছানো যায় না এমন commit লুকাই, যেমন `branch -D`-এর পর।
+  // আসল Git-এও এগুলো `git log`-এ দেখা যায় না (পরে garbage collection মুছে ফেলে)।
+  const reachable = new Set<string>();
+  if (repo) {
+    const tips = [...Object.values(repo.branches), ...(repo.merge ? [repo.merge.theirs] : [])];
+    for (const tip of tips) for (const id of ancestors(repo, tip)) reachable.add(id);
+  }
+  const commits = repo
+    ? Object.values(repo.commits)
+        .filter((c) => reachable.has(c.id))
+        .sort((a, b) => a.time - b.time)
+    : [];
   if (!repo || commits.length === 0) {
     return { nodes: [], edges: [], labels: [], width: 0, height: 0, lanes: 0 };
   }

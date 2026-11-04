@@ -69,25 +69,6 @@ describe("git merge", () => {
     expect(r.state.workdir["index.html"]).toBe("changed on feature");
   });
 
-  it("blocks when the same file changed on both sides (conflicts come later)", () => {
-    const before = state([
-      ...ONE_COMMIT,
-      "git switch -c feature",
-      'edit index.html "feature version"',
-      "git add .",
-      'git commit -m "feature edit"',
-      "git switch main",
-      'edit index.html "main version"',
-      "git add .",
-      'git commit -m "main edit"',
-    ]);
-    const r = exec(["git merge feature"], before);
-    expect(r.ok).toBe(false);
-    expect(r.output).toContain("CONFLICT (content): Merge conflict in index.html");
-    expect(r.explanation).toContain("এই অবস্থা (merge conflict) পরের ভার্সনে আসছে");
-    expect(r.state).toBe(before);
-  });
-
   it("says Already up to date when there is nothing new", () => {
     const s = state([...FEATURE_AHEAD, "git merge feature"]);
     expect(exec(["git merge feature"], s).output).toBe("Already up to date.");

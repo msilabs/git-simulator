@@ -105,27 +105,81 @@ export function makeCommitId(repo: Repo, seed: string): string {
   }
 }
 
-/* ---------- লাইনভিত্তিক diff (commit/merge-এর পরিসংখ্যানের জন্য) ---------- */
+/* ---------- লাইনভিত্তিক diff ---------- */
 
-function lines(content: string | undefined): string[] {
+/**
+ * ফাইলের লেখাকে লাইনে ভাঙে।
+ * সরলীকরণ: ফাইলের শেষে newline আছে কি না সিমুলেটর আলাদা করে দেখে না
+ * (আসল Git "\ No newline at end of file" দেখায়)।
+ */
+export function splitLines(content: string | undefined): string[] {
   if (content === undefined || content === "") return [];
   const parts = content.split("\n");
   if (parts[parts.length - 1] === "") parts.pop();
   return parts;
 }
 
-/** LCS দিয়ে কয়টা লাইন যোগ আর কয়টা বাদ হলো। ফাইল ছোট, তাই O(n·m) চলবে। */
-export function lineDiff(before: string | undefined, after: string | undefined) {
-  const a = lines(before);
-  const b = lines(after);
+export function joinLines(lines: readonly string[]): string {
+  return lines.join("\n");
+}
+
+/** LCS টেবিল: dp[i][j] = a[i..] আর b[j..]-এর longest common subsequence-এর দৈর্ঘ্য */
+function lcsTable(a: readonly string[], b: readonly string[]): number[][] {
   const dp: number[][] = Array.from({ length: a.length + 1 }, () => new Array(b.length + 1).fill(0));
   for (let i = a.length - 1; i >= 0; i--) {
     for (let j = b.length - 1; j >= 0; j--) {
       dp[i][j] = a[i] === b[j] ? dp[i + 1][j + 1] + 1 : Math.max(dp[i + 1][j], dp[i][j + 1]);
     }
   }
-  const common = dp[0][0];
-  return { insertions: b.length - common, deletions: a.length - common };
+  return dp;
+}
+
+export interface DiffOp {
+  readonly op: " " | "-" | "+";
+  readonly line: string;
+}
+
+/** a থেকে b-তে যেতে কোন লাইন থাকল, বাদ গেল বা যোগ হলো। ফাইল ছোট, তাই O(n·m) চলবে। */
+export function diffOps(a: readonly string[], b: readonly string[]): DiffOp[] {
+  const dp = lcsTable(a, b);
+  const ops: DiffOp[] = [];
+  let i = 0;
+  let j = 0;
+  while (i < a.length || j < b.length) {
+    if (i < a.length && j < b.length && a[i] === b[j]) {
+      ops.push({ op: " ", line: a[i++] });
+      j++;
+    } else if (i < a.length && (j === b.length || dp[i + 1][j] >= dp[i][j + 1])) {
+      // সমান হলে আগে মোছা লাইন, আসল Git-এর মতো "-" তারপর "+"
+      ops.push({ op: "-", line: a[i++] });
+    } else {
+      ops.push({ op: "+", line: b[j++] });
+    }
+  }
+  return ops;
+}
+
+/** a-র প্রতিটা লাইনের জন্য b-তে মিলে যাওয়া লাইনের index, না মিললে -1 (diff3-এর জন্য)। */
+export function lcsMatch(a: readonly string[], b: readonly string[]): number[] {
+  const match: number[] = new Array(a.length).fill(-1);
+  let i = 0;
+  let j = 0;
+  for (const op of diffOps(a, b)) {
+    if (op.op === " ") match[i++] = j++;
+    else if (op.op === "-") i++;
+    else j++;
+  }
+  return match;
+}
+
+export function lineDiff(before: string | undefined, after: string | undefined) {
+  let insertions = 0;
+  let deletions = 0;
+  for (const op of diffOps(splitLines(before), splitLines(after))) {
+    if (op.op === "+") insertions++;
+    else if (op.op === "-") deletions++;
+  }
+  return { insertions, deletions };
 }
 
 export interface FileChange {
@@ -174,6 +228,32 @@ export function diffstatLines(changes: FileChange[]): string[] {
     return ` ${c.path.padEnd(width)} | ${n}${bar ? " " + bar : ""}`;
   });
 }
+
+/**
+ * diff-এর "index abc1234..def5678" লাইনের জন্য ফাইলের লেখার ছোট id।
+ * সরলীকরণ: আসল blob hash নয়; তবে খালি ফাইলের জন্য আসল Git-এর মতোই e69de29।
+ */
+export function blobId(content: string | undefined): string {
+  if (content === undefined) return "0000000";
+  if (content === "") return "e69de29";
+  let h = 0x811c9dc5;
+  for (let i = 0; i < content.length; i++) {
+    h ^= content.charCodeAt(i);
+    h = Math.imul(h, 0x01000193) >>> 0;
+  }
+  h ^= h >>> 15;
+  h = Math.imul(h, 0x2c1b3c6d) >>> 0;
+  return (h >>> 4).toString(16).padStart(7, "0").slice(-7);
+}
+
+/** merge conflict চলাকালীন এখনো মেটানো হয়নি এমন ফাইলের নাম */
+export function unmergedPaths(repo: Repo): string[] {
+  return Object.keys(repo.merge?.unmerged ?? {}).sort();
+}
+
+/** conflict মেটানো বাকি থাকলে merge/commit-এর আসল Git এরর */
+export const UNMERGED_ERROR = (verb: "Merging" | "Committing") =>
+  `error: ${verb} is not possible because you have unmerged files.\nhint: Fix them up in the work tree, and then use 'git add/rm <file>'\nhint: as appropriate to mark resolution and make a commit.\nfatal: Exiting because of an unresolved conflict.`;
 
 /* ---------- branch আর ফাইলের নাম যাচাই ---------- */
 

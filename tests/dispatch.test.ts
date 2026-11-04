@@ -21,9 +21,9 @@ describe("command dispatch", () => {
   });
 
   it("reports unknown commands", () => {
-    const r = runCommand(EMPTY_STATE, "rm -rf /");
+    const r = runCommand(EMPTY_STATE, "npm install");
     expect(r.ok).toBe(false);
-    expect(r.output).toBe("rm: command not found");
+    expect(r.output).toBe("npm: command not found");
     expect(r.explanation).toContain("অজানা কমান্ড।");
   });
 

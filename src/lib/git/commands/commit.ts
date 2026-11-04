@@ -9,6 +9,8 @@ import {
   success,
   summaryLine,
   treeChanges,
+  unmergedPaths,
+  UNMERGED_ERROR,
 } from "../helpers";
 import { msg } from "../messages";
 import { formatStatus, getStatus } from "./status";
@@ -37,8 +39,41 @@ export const commit: CommandHandler = (state, args) => {
     }
   }
 
-  // আসল Git আগে দেখে commit করার কিছু আছে কি না, তারপর মেসেজ চায়।
   const parent = headCommit(repo);
+
+  // conflict-এ থেমে থাকা merge শেষ করা
+  if (repo.merge) {
+    const unmerged = unmergedPaths(repo);
+    if (unmerged.length) return failure(state, UNMERGED_ERROR("Committing"), msg.commitUnmerged(unmerged));
+    // আসল Git এখানে MERGE_MSG দিয়ে এডিটর খোলে; সিমুলেটর -m না দিলে সেই মেসেজই নেয়।
+    const message = messages.map((m) => m.trim()).filter(Boolean).join("\n\n") || repo.merge.message;
+    const time = state.clock + 1;
+    const id = makeCommitId(repo, `${time}:${parent!.id}:${repo.merge.theirs}:${message}`);
+    const mergeCommit: Commit = {
+      id,
+      message,
+      parents: [parent!.id, repo.merge.theirs],
+      files: repo.index,
+      time,
+      branch: repo.head,
+    };
+    return success(
+      {
+        ...state,
+        clock: time,
+        repo: {
+          ...repo,
+          merge: null,
+          commits: { ...repo.commits, [id]: mergeCommit },
+          branches: { ...repo.branches, [repo.head]: id },
+        },
+      },
+      `[${repo.head} ${id}] ${message.split("\n")[0]}`,
+      msg.commitMergeDone(id, repo.head, repo.merge.branch),
+    );
+  }
+
+  // আসল Git আগে দেখে commit করার কিছু আছে কি না, তারপর মেসেজ চায়।
   if (sameFiles(repo.index, headTree(repo))) {
     const info = getStatus(state, repo);
     const explanation =

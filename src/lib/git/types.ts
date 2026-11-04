@@ -26,6 +26,27 @@ export interface Commit {
   readonly branch: string;
 }
 
+/** conflict-এর ধরন, আসল `git status`-এর লেবেল অনুযায়ী */
+export type ConflictKind = "both modified" | "both added" | "deleted by us" | "deleted by them";
+
+/**
+ * conflict-এর কারণে থেমে থাকা merge (আসল Git-এ .git/MERGE_HEAD আর MERGE_MSG)।
+ * সরলীকরণ: আসল Git index-এ unmerged ফাইলের তিনটা "stage" (base/ours/theirs) রাখে;
+ * আমরা index-এ ours রেখে আলাদা তালিকায় চিহ্ন দিই কোনগুলো এখনো মেটানো হয়নি।
+ */
+export interface MergeState {
+  /** যে commit merge করা হচ্ছে (MERGE_HEAD) */
+  readonly theirs: string;
+  /** যে branch merge করা হচ্ছে */
+  readonly branch: string;
+  /** commit-এর ডিফল্ট মেসেজ (MERGE_MSG) */
+  readonly message: string;
+  /** এখনো মেটানো হয়নি এমন ফাইল আর তাদের conflict-এর ধরন */
+  readonly unmerged: Readonly<Record<string, ConflictKind>>;
+  /** merge যে ফাইলগুলো বদলেছে; `merge --abort` এগুলোকে HEAD-এ ফেরায় */
+  readonly touched: readonly string[];
+}
+
 export interface Repo {
   readonly commits: Readonly<Record<string, Commit>>;
   /** branch-এর নাম → commit id। প্রথম commit-এর আগে এটা খালি থাকে ("unborn" branch)। */
@@ -34,6 +55,8 @@ export interface Repo {
   readonly head: string;
   /** staging area (index)। আসল Git-এর মতো এতে সব tracked ফাইল থাকে। */
   readonly index: FileMap;
+  /** merge conflict চলাকালীন থাকে; না থাকলে কোনো merge চলছে না। */
+  readonly merge?: MergeState | null;
 }
 
 export interface SimState {

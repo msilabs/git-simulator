@@ -36,9 +36,18 @@ describe("helper commands", () => {
     expect(missing.output).toBe("cat: nope: No such file or directory");
   });
 
+  it("rm removes files and marks tracked ones as deleted", () => {
+    const r = exec(["git init", "touch a", "git add a", 'git commit -m "a"', "rm a"]);
+    expect(r.state.workdir).toEqual({});
+    expect(r.explanation).toContain("git add a");
+    expect(exec(["git status"], r.state).output).toContain("\tdeleted:    a");
+    expect(runCommand(EMPTY_STATE, "rm nope").output).toBe("rm: cannot remove 'nope': No such file or directory");
+    expect(runCommand(EMPTY_STATE, "rm").ok).toBe(false);
+  });
+
   it("help lists every command", () => {
     const out = runCommand(EMPTY_STATE, "help").output;
-    for (const c of ["git init", "git status", "git add", "git commit", "git log", "git branch", "git switch", "git checkout", "git merge", "touch", "edit", "ls", "cat", "clear"]) {
+    for (const c of ["git init", "git status", "git add", "git commit", "git log", "git branch", "git switch", "git checkout", "git merge", "touch", "edit", "ls", "cat", "clear", "git diff", "git restore", "git merge --abort", "git branch -d", "git branch -m", "rm"]) {
       expect(out).toContain(c);
     }
   });

@@ -1,4 +1,4 @@
-import type { CommandHandler, Commit, FileMap, SimState } from "../types";
+import type { CommandHandler, Commit, ConflictKind, FileMap, MergeState, SimState } from "../types";
 import {
   allPaths,
   diffstatLines,
@@ -9,45 +9,54 @@ import {
   mergeBase,
   modeLines,
   moveTree,
+  setFile,
   success,
   summaryLine,
   treeChanges,
+  unmergedPaths,
+  UNMERGED_ERROR,
 } from "../helpers";
+import { merge3 } from "../merge3";
 import { msg } from "../messages";
+import { commit } from "./commit";
 
 interface Conflict {
   readonly path: string;
-  readonly kind: "content" | "add/add" | "modify/delete";
+  readonly kind: ConflictKind;
+  /** conflict-এর পর working directory-তে যে লেখা থাকবে */
+  readonly work: string;
 }
 
 /**
  * তিন-দিকের (three-way) merge, ফাইল ধরে ধরে:
- * base থেকে শুধু এক দিক বদলালে সেই বদলটা নেওয়া হয়; দুই দিক একইভাবে বদলালে সমস্যা নেই;
- * দুই দিক আলাদাভাবে বদলালে conflict।
- * সরলীকরণ: আসল Git একই ফাইলের আলাদা লাইনের বদল নিজে থেকে মিলিয়ে নিতে পারে;
- * আমরা ফাইল-স্তরে দেখি, তাই একই ফাইল দুই দিকে বদলালেই conflict ধরা হয়।
+ * base থেকে শুধু এক দিক বদলালে সেই বদল; দুই দিক একইভাবে বদলালে সমস্যা নেই;
+ * দুই দিক একই ফাইল বদলালে লাইন ধরে মেলানো (merge3), তাতেও না মিললে conflict।
  */
-function threeWay(base: FileMap, ours: FileMap, theirs: FileMap) {
+function threeWay(base: FileMap, ours: FileMap, theirs: FileMap, theirsLabel: string) {
   const result: Record<string, string> = {};
   const conflicts: Conflict[] = [];
+  const autoMerged: string[] = [];
   for (const p of allPaths(base, ours, theirs)) {
     const b = base[p];
     const o = ours[p];
     const t = theirs[p];
-    let merged: string | undefined;
-    if (o === t) merged = o;
-    else if (b === o) merged = t;
-    else if (b === t) merged = o;
-    else {
-      conflicts.push({
-        path: p,
-        kind: o === undefined || t === undefined ? "modify/delete" : b === undefined ? "add/add" : "content",
-      });
-      continue;
+    if (o === t || b === t) {
+      if (o !== undefined) result[p] = o;
+    } else if (b === o) {
+      if (t !== undefined) result[p] = t;
+    } else if (o !== undefined && t !== undefined) {
+      const merged = merge3(b ?? "", o, t, "HEAD", theirsLabel);
+      autoMerged.push(p);
+      if (merged.conflict) conflicts.push({ path: p, kind: b === undefined ? "both added" : "both modified", work: merged.content });
+      else result[p] = merged.content;
+    } else if (o === undefined) {
+      // আমরা মুছেছি, ওরা বদলেছে: ওদের সংস্করণ ফাইলে থাকে (আসল Git-এর মতো)
+      conflicts.push({ path: p, kind: "deleted by us", work: t! });
+    } else {
+      conflicts.push({ path: p, kind: "deleted by them", work: o });
     }
-    if (merged !== undefined) result[p] = merged;
   }
-  return { result: result as FileMap, conflicts };
+  return { result: result as FileMap, conflicts, autoMerged };
 }
 
 function blockedOutput(paths: string[], reason: "local-changes" | "untracked") {
@@ -57,18 +66,49 @@ function blockedOutput(paths: string[], reason: "local-changes" | "untracked") {
     : `error: The following untracked working tree files would be overwritten by merge:\n${files}\nPlease move or remove them before you merge.\nAborting`;
 }
 
+/** `git merge --abort`: merge-এর আগের অবস্থায় ফেরা। */
+function abort(state: SimState): ReturnType<CommandHandler> {
+  const repo = state.repo!;
+  if (!repo.merge) {
+    return failure(state, "fatal: There is no merge to abort (MERGE_HEAD missing).", msg.mergeAbortNone);
+  }
+  const head = headCommit(repo)?.files ?? {};
+  let workdir = state.workdir;
+  let index = repo.index;
+  // merge যে ফাইলগুলো ছুঁয়েছিল সেগুলোই ফেরাই; বাকি commit না করা বদল থেকে যায় (git reset --merge-এর মতো)
+  for (const p of repo.merge.touched) {
+    workdir = setFile(workdir, p, head[p]);
+    index = setFile(index, p, head[p]);
+  }
+  return success({ ...state, workdir, repo: { ...repo, index, merge: null } }, "", msg.mergeAborted);
+}
+
 /**
- * `git merge <branch>`
+ * `git merge <branch>`, `git merge --abort`, `git merge --continue`
  * - <branch> যদি আগেই বর্তমান branch-এ থাকে: "Already up to date."
  * - বর্তমান branch যদি <branch>-এর পূর্বপুরুষ হয়: fast-forward (নতুন commit নয়)
- * - নাহলে ২ parent-এর merge commit
- * সরলীকরণ: conflict হলে আসল Git ফাইলে conflict চিহ্ন বসিয়ে থামে; v1 পুরো merge বাতিল করে।
- * `--no-ff`, `--squash`, `-m` ইত্যাদি অপশন নেই।
+ * - নাহলে ২ parent-এর merge commit; একই লাইন দুই দিকে বদলালে conflict-এ থামে
+ * সরলীকরণ: `--no-ff`, `--squash`, `-m` ইত্যাদি অপশন নেই।
  */
 export const merge: CommandHandler = (state, args) => {
   const repo = state.repo!;
+  if (args.length === 1 && args[0] === "--abort") return abort(state);
+  if (args.length === 1 && args[0] === "--continue") {
+    if (!repo.merge) return failure(state, "fatal: There is no merge in progress (MERGE_HEAD missing).", msg.mergeContinueNone);
+    return commit(state, []);
+  }
   const option = args.find((a) => a.startsWith("-"));
   if (option) return failure(state, `error: unsupported in simulator: ${option}`, msg.unsupportedOption(option));
+
+  if (repo.merge) {
+    return unmergedPaths(repo).length
+      ? failure(state, UNMERGED_ERROR("Merging"), msg.mergeInProgressUnmerged)
+      : failure(
+          state,
+          "fatal: You have not concluded your merge (MERGE_HEAD exists).\nPlease, commit your changes before you merge.",
+          msg.mergeInProgressResolved,
+        );
+  }
   if (args.length === 0) return failure(state, "fatal: No remote for the current branch.", msg.mergeMissingArg);
   if (args.length > 1) return failure(state, `error: unsupported in simulator: ${args[1]}`, msg.mergeTooMany);
 
@@ -116,26 +156,20 @@ export const merge: CommandHandler = (state, args) => {
   }
 
   // সত্যিকারের merge।
-  const baseId = mergeBase(repo, ours.id, theirsId);
-  const base = baseId ? repo.commits[baseId].files : {};
-  const { result, conflicts } = threeWay(base, ours.files, theirs.files);
-
-  if (conflicts.length) {
-    const lines = conflicts.flatMap((c) =>
-      c.kind === "modify/delete"
-        ? [`CONFLICT (modify/delete): ${c.path} deleted in one branch and modified in the other.`]
-        : [`Auto-merging ${c.path}`, `CONFLICT (${c.kind}): Merge conflict in ${c.path}`],
-    );
-    lines.push("Merge aborted by the simulator: conflicts are not supported yet. Nothing was changed.");
-    return failure(state, lines.join("\n"), msg.mergeConflict(conflicts.map((c) => c.path)));
-  }
-
   // আসল Git (ort) সত্যিকারের merge-এর আগে চায় index যেন HEAD-এর সাথে মেলে।
   const stagedPaths = allPaths(repo.index, ours.files).filter((p) => repo.index[p] !== ours.files[p]);
   if (stagedPaths.length) {
     return failure(state, blockedOutput(stagedPaths, "local-changes"), msg.mergeBlocked(stagedPaths));
   }
-  const moved = moveTree(state.workdir, repo.index, ours.files, result);
+
+  const baseId = mergeBase(repo, ours.id, theirsId);
+  const base = baseId ? repo.commits[baseId].files : {};
+  const { result, conflicts, autoMerged } = threeWay(base, ours.files, theirs.files, name);
+
+  // working directory-তে যা বসবে: মেলানো ফাইল + conflict চিহ্নসহ ফাইল
+  let target: FileMap = result;
+  for (const c of conflicts) target = setFile(target, c.path, c.work);
+  const moved = moveTree(state.workdir, repo.index, ours.files, target);
   if (!moved.ok) {
     return failure(
       state,
@@ -144,9 +178,45 @@ export const merge: CommandHandler = (state, args) => {
     );
   }
 
-  const time = state.clock + 1;
   // আসল Git main/master-এ merge করলে " into <branch>" লেখে না।
   const message = `Merge branch '${name}'${repo.head === "main" || repo.head === "master" ? "" : ` into ${repo.head}`}`;
+  const conflictPaths = new Set(conflicts.map((c) => c.path));
+  const autoLines = autoMerged.map((p) => `Auto-merging ${p}`);
+  const autoExplain = autoMerged.filter((p) => !conflictPaths.has(p));
+
+  if (conflicts.length) {
+    // conflict ফাইলের index-এ আমাদের সংস্করণই থাকে; বাকি মেলানো ফাইল staged
+    let index = moved.index;
+    for (const c of conflicts) index = setFile(index, c.path, ours.files[c.path]);
+    const mergeState: MergeState = {
+      theirs: theirsId,
+      branch: name,
+      message,
+      unmerged: Object.fromEntries(conflicts.map((c) => [c.path, c.kind])),
+      touched: allPaths(ours.files, target).filter((p) => ours.files[p] !== target[p]),
+    };
+    const lines = [
+      ...autoLines,
+      ...conflicts.map((c) =>
+        c.kind === "deleted by us"
+          ? `CONFLICT (modify/delete): ${c.path} deleted in HEAD and modified in ${name}.  Version ${name} of ${c.path} left in tree.`
+          : c.kind === "deleted by them"
+            ? `CONFLICT (modify/delete): ${c.path} deleted in ${name} and modified in HEAD.  Version HEAD of ${c.path} left in tree.`
+            : `CONFLICT (${c.kind === "both added" ? "add/add" : "content"}): Merge conflict in ${c.path}`,
+      ),
+      "Automatic merge failed; fix conflicts and then commit the result.",
+    ];
+    const explanation = [autoExplain.length ? msg.mergeAutoMerged(autoExplain) : "", msg.mergeConflict([...conflictPaths], name)]
+      .filter(Boolean)
+      .join("\n");
+    return failure(
+      { ...state, workdir: moved.workdir, repo: { ...repo, index, merge: mergeState } },
+      lines.join("\n"),
+      explanation,
+    );
+  }
+
+  const time = state.clock + 1;
   const id = makeCommitId(repo, `${time}:${ours.id}:${theirsId}:${message}`);
   const mergeCommit: Commit = {
     id,
@@ -158,6 +228,7 @@ export const merge: CommandHandler = (state, args) => {
   };
   const changes = treeChanges(ours.files, result);
   const output = [
+    ...autoLines,
     "Merge made by the 'ort' strategy.",
     ...diffstatLines(changes),
     changes.length ? summaryLine(changes) : "",
@@ -177,5 +248,8 @@ export const merge: CommandHandler = (state, args) => {
       branches: { ...repo.branches, [repo.head]: id },
     },
   };
-  return success(next, output, msg.mergeCommit(repo.head, name, id));
+  const explanation = [autoExplain.length ? msg.mergeAutoMerged(autoExplain) : "", msg.mergeCommit(repo.head, name, id)]
+    .filter(Boolean)
+    .join("\n");
+  return success(next, output, explanation);
 };

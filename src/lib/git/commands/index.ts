@@ -12,6 +12,9 @@ import { log } from "./log";
 import { branch } from "./branch";
 import { switchCmd, checkout } from "./switch";
 import { merge } from "./merge";
+import { diff } from "./diff";
+import { restore } from "./restore";
+import { rm } from "./rm";
 import { touch } from "./touch";
 import { edit } from "./edit";
 import { ls } from "./ls";
@@ -36,6 +39,8 @@ export const GIT_COMMANDS: Readonly<Record<string, GitCommand>> = {
   switch: { run: switchCmd },
   checkout: { run: checkout },
   merge: { run: merge },
+  diff: { run: diff },
+  restore: { run: restore },
 };
 
 /** সিমুলেটরের সহায়ক কমান্ড (Git নয়) */
@@ -44,6 +49,7 @@ export const SHELL_COMMANDS: Readonly<Record<string, CommandHandler>> = {
   edit,
   ls,
   cat,
+  rm,
   help,
   clear,
 };

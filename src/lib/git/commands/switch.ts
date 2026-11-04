@@ -1,5 +1,5 @@
 import type { CommandHandler, FileMap, SimState } from "../types";
-import { allPaths, failure, headTree, isValidBranchName, moveTree, success } from "../helpers";
+import { allPaths, failure, headTree, isValidBranchName, moveTree, success, unmergedPaths } from "../helpers";
 import { msg } from "../messages";
 
 type Verb = "switch" | "checkout";
@@ -82,6 +82,19 @@ function switchTo(state: SimState, name: string, verb: Verb): ReturnType<Command
 function makeHandler(verb: Verb): CommandHandler {
   const createFlags = verb === "switch" ? ["-c", "--create"] : ["-b"];
   return (state, args) => {
+    const repo = state.repo!;
+    // সরলীকরণ: আসল `git checkout` সব conflict মেটানোর পর merge চলাকালীনও branch বদলাতে দেয়;
+    // সিমুলেটর switch আর checkout দুটোকেই merge শেষ বা বাতিল না হওয়া পর্যন্ত আটকায়।
+    if (repo.merge && args.length > 0) {
+      const unmerged = unmergedPaths(repo);
+      return failure(
+        state,
+        verb === "checkout" && unmerged.length
+          ? `error: you need to resolve your current index first\n${unmerged.map((p) => `${p}: needs merge`).join("\n")}`
+          : 'fatal: cannot switch branch while merging\nConsider "git merge --quit" or "git worktree add".',
+        msg.switchMerging,
+      );
+    }
     if (args.length === 0) {
       return verb === "switch"
         ? failure(state, "fatal: missing branch or commit argument", msg.switchMissingArg)
