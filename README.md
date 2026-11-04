@@ -97,7 +97,7 @@ src/components/   Terminal, FilePanel, CommitGraph, Simulator
 tests/            Vitest tests for every command
 ```
 
-State is immutable: every command returns a new `SimState` (or the same object when nothing changed). Because the model is deterministic, the app saves only a base state plus the list of commands and replays them on load. The list is compacted after 200 commands, so saves stay small.
+State is immutable: every command returns a new `SimState` (or the same object when nothing changed). Because the model is deterministic, the app saves only a base state plus the list of commands and replays them on load. The list is compacted after 200 commands, so saves stay small. After compaction you can still undo the last 100 commands.
 
 ## Adding a new command
 

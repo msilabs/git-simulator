@@ -2,6 +2,29 @@
 
 All notable changes to this project are documented here. The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and versions follow [Semantic Versioning](https://semver.org/).
 
+## [2.1.0] - 2026-11-04
+
+### Fixed
+- Corrupt or outdated saved data no longer leaves a blank page. Saves are validated deeply, and an error boundary offers "start over".
+- Long sessions keep saving. The app stores a base state plus the command log and replays it on load (360 commands: about 334 KB instead of hitting the 5 MB limit).
+- No horizontal scroll on 320px screens.
+- Many branches on one commit no longer pile up. Extra labels collapse into a "+N" chip.
+- `touch` on an existing file no longer creates an empty undo step.
+- `git merge --abort` resets the whole index, like `git reset --merge`.
+
+### Added
+- Tap a file in the file panel to see its content.
+- A warning in the header when saving fails.
+- Browser tests (Playwright, desktop and phone) and a CI workflow for every pull request.
+- Dependabot, and GitHub Actions pinned to commit SHAs.
+
+### Changed
+- Starter steps advance by result, so `git add .` counts too, and undo restores the step.
+- Screen readers hear only the latest explanation instead of the whole terminal.
+- All Bengali UI labels live in `src/lib/ui-text.ts`.
+- Upgraded to Next.js 16.4.2 (production `npm audit`: 0) and Vitest 4. The `serve` package is replaced by a small Node script.
+- Split `helpers.ts` into `lines.ts`, `tree.ts` and `refs.ts`.
+
 ## [2.0.0] - 2026-11-04
 
 ### Added
@@ -30,5 +53,6 @@ All notable changes to this project are documented here. The format follows [Kee
 - Bengali explanation after every command, plus clickable "first 5 commands" steps.
 - Progress saved in `localStorage`.
 
+[2.1.0]: https://github.com/msilabs/git-simulator/compare/b2add6d...37e3ed9
 [2.0.0]: https://github.com/msilabs/git-simulator/compare/5b5b80b...b2add6d
 [1.0.0]: https://github.com/msilabs/git-simulator/commit/5b5b80b
