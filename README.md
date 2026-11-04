@@ -18,9 +18,20 @@ No real Git runs here. A small, pure TypeScript model of Git lives in `src/lib/g
 | `git branch` / `git branch <name>` | List branches / create a branch at the current commit |
 | `git switch <name>` / `git switch -c <name>` | Switch branches / create and switch |
 | `git checkout <name>` / `git checkout -b <name>` | Same as above, using the older command |
-| `git merge <branch>` | Fast-forward, or create a two-parent merge commit |
+| `git merge <branch>` | Fast-forward, a two-parent merge commit, or stop on a merge conflict |
+| `git merge --abort` / `--continue` | Cancel a conflicted merge / finish it (same as `git commit`) |
+| `git diff` / `git diff --staged` | Unified diff of unstaged / staged changes (`--cached` also works) |
+| `git restore <file>` / `git restore --staged <file>` | Discard working-tree changes / unstage (`.` for everything) |
+| `git branch -d` / `-D <name>` | Delete a merged branch / force-delete |
+| `git branch -m` / `-M [<old>] <new>` | Rename a branch |
 
-Simulator-only helpers: `touch <file>`, `edit <file> "text"` (use `\n` for new lines), `ls`, `cat <file>`, `help`, `clear`.
+Simulator-only helpers: `touch <file>`, `edit <file> "text"` (use `\n` for new lines), `rm <file>`, `ls`, `cat <file>`, `help`, `clear`.
+
+The **↶ undo** button in the top bar steps back one command at a time. Real Git has no such button; the explanation says so.
+
+### Merge conflicts
+
+Merges are line-based (diff3). If the two branches changed different lines, Git merges them automatically. If they changed the same lines, the merge stops, writes Git-style conflict markers into the file, and `git status` lists "Unmerged paths". You resolve it the real way: `edit` the file, then `git add` it, then `git commit`. Modify/delete and add/add conflicts are supported too.
 
 Other Git commands are recognised as "not in the simulator yet".
 
@@ -28,7 +39,11 @@ Other Git commands are recognised as "not in the simulator yet".
 
 - Commit ids are 7-character hex ids from a small hash, not SHA-1. They are unique within a session.
 - There are no folders. File names are flat, and there are no globs.
-- Merges compare whole files. If both sides changed the same file, the merge is aborted, with nothing changed (conflict resolution is planned). Real Git would merge non-overlapping line changes.
+- The line-level merge is plain diff3 with the default `merge` conflict style. Real Git (ort) has extra heuristics, so in rare cases it draws conflict hunks differently.
+- While a merge is in progress, both `switch` and `checkout` refuse to change branches. Real `checkout` allows it once every conflict is resolved.
+- `git diff` during a conflict shows a normal diff against our version, not Git's combined `diff --cc` format. Commit-to-commit diffs (`git diff main feature`) are not supported yet.
+- The `index` line in `git diff` uses short fake blob ids (an empty file still gets the real `e69de29`).
+- Commits that no branch can reach (after `git branch -D`) disappear from the graph and log, as in real Git. The simulator also never garbage-collects them.
 - The merge base is the newest common ancestor. Real Git also handles multiple merge bases.
 - `git log` shows no `Date` line, uses a fixed author and does not open a pager.
 - `git commit` without `-m` asks for a message instead of opening an editor.
@@ -58,6 +73,8 @@ src/lib/git/
   repo.ts         runCommand(state, input) => { state, output, explanation, ok }
   parser.ts       splits terminal input into words (handles quotes)
   messages.ts     every Bengali explanation and error in one place
+  merge3.ts       line-level three-way merge with conflict markers
+  diffFormat.ts   unified diff output for git diff
   helpers.ts      shared pure helpers (trees, diffs, ids, ancestry)
   commands/       one file per command + index.ts registry
 src/lib/graph/    pure layout for the SVG commit graph
