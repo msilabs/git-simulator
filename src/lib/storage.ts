@@ -12,6 +12,7 @@ import {
   isStringArray,
   isValidLines,
   isValidSimState,
+  normalizeSimState,
   MAX_HISTORY,
   MAX_LINES,
   replay,
@@ -59,6 +60,7 @@ export function parseSaved(raw: string | null): LoadResult {
     } else {
       return { status: "corrupt" };
     }
+    base = normalizeSimState(base);
     const replayed = replay(base, log);
     const nextId = Math.max(0, ...lines.map((l) => l.id)) + 1;
     return { status: "ok", session: { ...freshSession(), ...replayed, base, lines, history, step, nextId } };

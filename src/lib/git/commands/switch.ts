@@ -1,5 +1,5 @@
 import type { CommandHandler, FileMap, SimState } from "../types";
-import { allPaths, failure, headTree, isValidBranchName, moveTree, success, unmergedPaths } from "../helpers";
+import { allPaths, failure, headTree, isValidBranchName, moveTree, overwrittenError, success, unmergedPaths } from "../helpers";
 import { msg } from "../messages";
 
 type Verb = "switch" | "checkout";
@@ -49,18 +49,11 @@ function switchTo(state: SimState, name: string, verb: Verb): ReturnType<Command
   const target = repo.commits[targetId].files;
   const moved = moveTree(state.workdir, repo.index, headTree(repo), target);
   if (!moved.ok) {
-    const files = moved.paths.map((p) => `\t${p}`).join("\n");
-    return moved.reason === "local-changes"
-      ? failure(
-          state,
-          `error: Your local changes to the following files would be overwritten by checkout:\n${files}\nPlease commit your changes or stash them before you switch branches.\nAborting`,
-          msg.switchBlocked(moved.paths),
-        )
-      : failure(
-          state,
-          `error: The following untracked working tree files would be overwritten by checkout:\n${files}\nPlease move or remove them before you switch branches.\nAborting`,
-          msg.switchBlockedUntracked(moved.paths),
-        );
+    return failure(
+      state,
+      overwrittenError(moved.paths, moved.reason, "checkout"),
+      moved.reason === "local-changes" ? msg.switchBlocked(moved.paths) : msg.switchBlockedUntracked(moved.paths),
+    );
   }
 
   const carried = carriedChanges(moved.workdir, moved.index, target);

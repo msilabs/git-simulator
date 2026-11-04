@@ -20,7 +20,8 @@ npm run build      # must pass before a PR
 - TypeScript strict mode, formatted like the existing code (2 spaces, double quotes, trailing commas).
 - `src/lib/git` must stay free of React and browser APIs. Every command is a pure function.
 - Never mutate state. Return new objects with spread (`{ ...state, repo: { ...repo, index } }`).
-- Terminal output is English and mirrors real Git as closely as practical. Explanations are Bengali and live only in `messages.ts`.
+- Terminal output is English and mirrors real Git as closely as practical. Command explanations are Bengali and live in `src/lib/git/messages.ts`. Interface labels live in `src/lib/ui-text.ts`. Don't hard-code Bengali text in components.
+- A command that changes nothing must return the same `state` object; undo and saving rely on it.
 - Bengali text should be short, friendly and plain. Write numbers with Bengali digits (use `bn()`).
 - When the simulator deliberately differs from real Git, leave a comment starting with `সরলীকরণ:` ("simplification") explaining how.
 - Brand colors: Mint `#1ED6A8`, Ink Navy `#14213D`, Deep Teal `#0B7F6E`, Sun `#FFB020`, Indigo `#4F46E5`, Slate `#5B6782`, Cloud `#F5F7FB`. Do not use Mint or Sun as text color on white.

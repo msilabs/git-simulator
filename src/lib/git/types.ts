@@ -55,8 +55,8 @@ export interface Repo {
   readonly head: string;
   /** staging area (index)। আসল Git-এর মতো এতে সব tracked ফাইল থাকে। */
   readonly index: FileMap;
-  /** merge conflict চলাকালীন থাকে; না থাকলে কোনো merge চলছে না। */
-  readonly merge?: MergeState | null;
+  /** merge conflict চলাকালীন থাকে; null মানে কোনো merge চলছে না। */
+  readonly merge: MergeState | null;
 }
 
 export interface SimState {

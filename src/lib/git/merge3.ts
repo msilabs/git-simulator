@@ -12,7 +12,7 @@
  * সরলীকরণ: আসল Git (ort) diff-এর ফলাফল আরও কিছু কৌশলে ছোট করে আর `diff3`/`zdiff3`
  * স্টাইলও দেয়; আমরা শুধু ডিফল্ট "merge" স্টাইল দেখাই।
  */
-import { joinLines, lcsMatch, splitLines } from "./helpers";
+import { joinLines, lcsMatch, splitLines } from "./lines";
 
 export interface Merge3Result {
   readonly content: string;

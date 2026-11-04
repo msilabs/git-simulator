@@ -141,6 +141,13 @@ describe("merge conflicts", () => {
     expect(r.explanation).toContain("Git নিজেই মিলিয়ে নিল");
   });
 
+  it("abort also unstages unrelated changes staged during the merge, like git reset --merge", () => {
+    const before = state(CONFLICTING);
+    const r = exec(["git merge feature", 'edit notes.txt "n"', "git add notes.txt", "git merge --abort"], before);
+    expect(repoOf(r.state).index).toEqual(repoOf(before).index);
+    expect(r.state.workdir["notes.txt"]).toBe("n"); // ফাইলটা থাকে, শুধু unstaged
+  });
+
   it("handles add/add conflicts", () => {
     const r = exec([
       ...ONE_COMMIT,

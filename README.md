@@ -77,17 +77,24 @@ src/lib/git/
   types.ts        Repo, Commit, SimState, CommandResult types
   repo.ts         runCommand(state, input) => { state, output, explanation, ok }
   parser.ts       splits terminal input into words (handles quotes)
-  messages.ts     every Bengali explanation and error in one place
+  messages.ts     every Bengali command explanation and error in one place
   merge3.ts       line-level three-way merge with conflict markers
   diffFormat.ts   unified diff output for git diff
-  helpers.ts      shared pure helpers (trees, diffs, ids, ancestry)
+  lines.ts        line-based LCS diff
+  tree.ts         file snapshots: comparing, stats, switching trees
+  refs.ts         commits, branches, ancestry, ids, name checks
+  helpers.ts      result helpers, re-exports the three modules above
   commands/       one file per command + index.ts registry
+src/lib/session.ts  terminal session: run, undo, replay (pure)
+src/lib/storage.ts  localStorage save/load with validation
+src/lib/steps.ts    "first 5 commands" progress
+src/lib/ui-text.ts  every Bengali UI label in one place
 src/lib/graph/    pure layout for the SVG commit graph
 src/components/   Terminal, FilePanel, CommitGraph, Simulator
 tests/            Vitest tests for every command
 ```
 
-State is immutable: every command returns a new `SimState`, so features like undo can be added by keeping old states around.
+State is immutable: every command returns a new `SimState` (or the same object when nothing changed). Because the model is deterministic, the app saves only a base state plus the list of commands and replays them on load. The list is compacted after 200 commands, so saves stay small.
 
 ## Adding a new command
 

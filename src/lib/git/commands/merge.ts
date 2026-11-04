@@ -9,6 +9,7 @@ import {
   mergeBase,
   modeLines,
   moveTree,
+  overwrittenError,
   setFile,
   success,
   summaryLine,
@@ -59,13 +60,6 @@ function threeWay(base: FileMap, ours: FileMap, theirs: FileMap, theirsLabel: st
   return { result: result as FileMap, conflicts, autoMerged };
 }
 
-function blockedOutput(paths: string[], reason: "local-changes" | "untracked") {
-  const files = paths.map((p) => `\t${p}`).join("\n");
-  return reason === "local-changes"
-    ? `error: Your local changes to the following files would be overwritten by merge:\n${files}\nPlease commit your changes or stash them before you merge.\nAborting`
-    : `error: The following untracked working tree files would be overwritten by merge:\n${files}\nPlease move or remove them before you merge.\nAborting`;
-}
-
 /** `git merge --abort`: merge-এর আগের অবস্থায় ফেরা। */
 function abort(state: SimState): ReturnType<CommandHandler> {
   const repo = state.repo!;
@@ -74,13 +68,10 @@ function abort(state: SimState): ReturnType<CommandHandler> {
   }
   const head = headCommit(repo)?.files ?? {};
   let workdir = state.workdir;
-  let index = repo.index;
-  // merge যে ফাইলগুলো ছুঁয়েছিল সেগুলোই ফেরাই; বাকি commit না করা বদল থেকে যায় (git reset --merge-এর মতো)
-  for (const p of repo.merge.touched) {
-    workdir = setFile(workdir, p, head[p]);
-    index = setFile(index, p, head[p]);
-  }
-  return success({ ...state, workdir, repo: { ...repo, index, merge: null } }, "", msg.mergeAborted);
+  // আসল Git (`reset --merge`)-এর মতো: index পুরোটা HEAD-এ ফেরে; working directory-তে শুধু
+  // merge-এর ছোঁয়া ফাইলগুলো ফেরে, বাকি commit না করা বদল থেকে যায় (staged থাকলে unstaged হয়)।
+  for (const p of repo.merge.touched) workdir = setFile(workdir, p, head[p]);
+  return success({ ...state, workdir, repo: { ...repo, index: head, merge: null } }, "", msg.mergeAborted);
 }
 
 /**
@@ -130,7 +121,7 @@ export const merge: CommandHandler = (state, args) => {
     if (!moved.ok) {
       return failure(
         state,
-        blockedOutput(moved.paths, moved.reason),
+        overwrittenError(moved.paths, moved.reason, "merge"),
         moved.reason === "local-changes" ? msg.mergeBlocked(moved.paths) : msg.mergeBlockedUntracked(moved.paths),
       );
     }
@@ -159,7 +150,7 @@ export const merge: CommandHandler = (state, args) => {
   // আসল Git (ort) সত্যিকারের merge-এর আগে চায় index যেন HEAD-এর সাথে মেলে।
   const stagedPaths = allPaths(repo.index, ours.files).filter((p) => repo.index[p] !== ours.files[p]);
   if (stagedPaths.length) {
-    return failure(state, blockedOutput(stagedPaths, "local-changes"), msg.mergeBlocked(stagedPaths));
+    return failure(state, overwrittenError(stagedPaths, "local-changes", "merge"), msg.mergeBlocked(stagedPaths));
   }
 
   const baseId = mergeBase(repo, ours.id, theirsId);
@@ -173,7 +164,7 @@ export const merge: CommandHandler = (state, args) => {
   if (!moved.ok) {
     return failure(
       state,
-      blockedOutput(moved.paths, moved.reason),
+      overwrittenError(moved.paths, moved.reason, "merge"),
       moved.reason === "local-changes" ? msg.mergeBlocked(moved.paths) : msg.mergeBlockedUntracked(moved.paths),
     );
   }

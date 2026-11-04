@@ -171,6 +171,12 @@ export function isValidSimState(x: unknown): x is SimState {
   return true;
 }
 
+/** পুরোনো সেভে `merge` না থাকলে null বসায় (v2.0-এর আগে ঐচ্ছিক ছিল)। */
+export function normalizeSimState(s: SimState): SimState {
+  if (!s.repo || s.repo.merge !== undefined) return s;
+  return { ...s, repo: { ...s.repo, merge: null } };
+}
+
 export function isValidLines(x: unknown): x is TerminalLine[] {
   return (
     Array.isArray(x) &&

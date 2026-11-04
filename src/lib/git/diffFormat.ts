@@ -1,7 +1,24 @@
 /**
  * আসল `git diff`-এর মতো unified diff লেখা।
  */
-import { blobId, diffOps, splitLines, type DiffOp } from "./helpers";
+import { diffOps, splitLines, type DiffOp } from "./lines";
+
+/**
+ * diff-এর "index abc1234..def5678" লাইনের জন্য ফাইলের লেখার ছোট id।
+ * সরলীকরণ: আসল blob hash নয়; তবে খালি ফাইলের জন্য আসল Git-এর মতোই e69de29।
+ */
+export function blobId(content: string | undefined): string {
+  if (content === undefined) return "0000000";
+  if (content === "") return "e69de29";
+  let h = 0x811c9dc5;
+  for (let i = 0; i < content.length; i++) {
+    h ^= content.charCodeAt(i);
+    h = Math.imul(h, 0x01000193) >>> 0;
+  }
+  h ^= h >>> 15;
+  h = Math.imul(h, 0x2c1b3c6d) >>> 0;
+  return (h >>> 4).toString(16).padStart(7, "0").slice(-7);
+}
 
 const CONTEXT = 3;
 

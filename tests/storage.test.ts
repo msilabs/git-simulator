@@ -70,6 +70,13 @@ describe("storage", () => {
     }
   });
 
+  it("fills in merge: null for saves made before it was required", () => {
+    const sim = runAll(["git init", "touch a"]);
+    const old = { ...sim, repo: { ...sim.repo!, merge: undefined } };
+    const r = parseSaved(JSON.stringify({ v: 1, sim: old, lines: [], history: [], step: 0 }));
+    expect(r.status === "ok" && r.session.sim.repo?.merge).toBeNull();
+  });
+
   it("keeps the save small even after many commands", () => {
     let s = applyCommand(freshSession(), "git init");
     const big = "<p>content </p>".repeat(40);
