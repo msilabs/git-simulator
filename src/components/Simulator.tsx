@@ -142,7 +142,7 @@ export function Simulator() {
           <CommitGraph repo={session.sim.repo} />
         </div>
         <div className="min-w-0 lg:col-start-1 lg:row-start-1">
-          <FilePanel state={session.sim} />
+          <FilePanel state={session.sim} onRun={run} />
         </div>
         <div className="h-[70dvh] min-h-[380px] min-w-0 lg:col-start-2 lg:row-span-2 lg:row-start-1 lg:h-auto lg:min-h-0">
           <Terminal

@@ -150,3 +150,33 @@ test("Tab completes like a real terminal, and a double Tab lists the matches", a
   await input.press("Tab");
   await expect(input).not.toBeFocused();
 });
+
+test("a file can be edited from the file panel, which runs the matching edit command", async ({ page }) => {
+  await run(
+    page,
+    "git init",
+    'edit a.txt "base"',
+    "git add .",
+    'git commit -m "base"',
+    "git switch -c f",
+    'edit a.txt "theirs"',
+    'git commit -am "f"',
+    "git switch main",
+    'edit a.txt "ours"',
+    'git commit -am "m"',
+    "git merge f",
+  );
+  const work = page.locator("section").filter({ hasText: "Working Directory" }).first();
+  await work.getByRole("button", { name: /a\.txt-এর লেখা দেখুন/ }).first().click();
+  await page.getByRole("button", { name: "a.txt এডিট করুন" }).click();
+  const editor = page.getByRole("textbox", { name: "a.txt-এর লেখা" });
+  await expect(editor).toHaveValue(/<<<<<<< HEAD/);
+  await editor.fill('ours and "theirs"\nsecond line');
+  await page.getByRole("button", { name: "সেভ", exact: true }).click();
+
+  await expect(log(page)).toContainText('edit a.txt "ours and \\"theirs\\"\\nsecond line"');
+  await run(page, "cat a.txt");
+  await expect(log(page)).toContainText("second line");
+  await run(page, "git add a.txt", "git commit");
+  await expect(log(page)).toContainText("merge শেষ!");
+});

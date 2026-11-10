@@ -81,3 +81,27 @@ describe("echo and pwd", () => {
     expect(runCommand(EMPTY_STATE, "pwd").output).toBe("/home/learner/project");
   });
 });
+
+describe("editCommand (used by the file panel editor)", () => {
+  it("round-trips any content through the terminal parser and edit", async () => {
+    const { editCommand } = await import("../src/lib/git/commands/edit");
+    for (const content of [
+      "hello",
+      "",
+      "line1\nline2\n\nline4",
+      'say "hi"',
+      "C:\\path\\new",
+      'printf("a\\n");',
+      "back\\\\slash",
+      "<<<<<<< HEAD\nours\n=======\ntheirs\n>>>>>>> feature",
+      "  spaced  ",
+    ]) {
+      const s = state([editCommand("f.txt", content)]);
+      expect(s.workdir["f.txt"], JSON.stringify(content)).toBe(content);
+    }
+  });
+
+  it("typed edit commands still turn \\n into a new line", () => {
+    expect(state(['edit a "x\\ny"']).workdir.a).toBe("x\ny");
+  });
+});

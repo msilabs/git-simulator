@@ -41,6 +41,8 @@ No real Git runs here. A small, pure TypeScript model of Git lives in `src/lib/g
 
 Simulator-only helpers: `touch <file>`, `edit <file> "text"` (use `\n` for new lines), `echo "text" > <file>` / `>> <file>` (overwrite / append a line), `rm <file>`, `ls`, `cat <file>`, `pwd`, `help`, `clear`.
 
+In the file panel, tap a working-directory file to see it, then **Edit** to change it in place. Saving runs the matching `edit <file> "..."` command in the terminal, so undo and reloads keep working and you can see the command it stands for. This makes resolving merge conflicts much easier.
+
 **Tab** completes command, file, branch and stash names like a real shell: one match is filled in, several matches fill in their common part, and a second Tab lists them. On an empty line, Tab moves focus as usual.
 
 The **↶ undo** button in the top bar steps back one command at a time. Real Git has no such button; the explanation says so.

@@ -56,6 +56,12 @@ export const ui = {
   emptyFile: "(খালি ফাইল)",
   deletedFile: "(ফাইলটা মুছে গেছে)",
   showContent: (name: string) => `${name}-এর লেখা দেখুন`,
+  editorEdit: "এডিট করুন",
+  editorOpen: (name: string) => `${name} এডিট করুন`,
+  editorLabel: (name: string) => `${name}-এর লেখা`,
+  editorHint: "সেভ করলে টার্মিনালে এর সমান edit কমান্ডটা চলবে। Ctrl+Enter: সেভ, Esc: বাতিল।",
+  editorSave: "সেভ",
+  editorCancel: "বাতিল",
   mergeBannerTitle: "merge চলছে:",
   mergeBanner: (branch: string, count: number) =>
     `${branch} আনতে গিয়ে ${bn(count)}টা ফাইলে conflict। ফাইল ঠিক করে \`git add\`, তারপর \`git commit\`। বাতিল: \`git merge --abort\``,

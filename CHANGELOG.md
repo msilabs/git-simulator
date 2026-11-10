@@ -5,6 +5,7 @@ All notable changes to this project are documented here. The format follows [Kee
 ## [Unreleased]
 
 ### Added
+- Edit working-directory files right in the file panel. Saving runs the equivalent `edit` command in the terminal. `edit` now also understands `\\` for a literal backslash.
 - A conflicting `git stash pop` / `apply` now writes conflict markers like real Git, keeps the cleanly merged changes staged and keeps the stash entry.
 - `git restore --staged <file>` settles a conflicted file with our version (merge, revert or stash), like real Git.
 - `git log --graph` (with `--oneline`), `--all` and `-n <N>` / `-<N>`. The graph follows real Git's drawing rules, checked line by line against git 2.56.

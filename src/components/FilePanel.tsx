@@ -1,8 +1,9 @@
 "use client";
 
-import { useState } from "react";
+import { useState, type KeyboardEvent } from "react";
 import type { SimState } from "@/lib/git/types";
 import { allPaths, get, has, headCommit } from "@/lib/git/helpers";
+import { editCommand } from "@/lib/git/commands/edit";
 import { ui } from "@/lib/ui-text";
 import { RichText } from "./RichText";
 
@@ -25,12 +26,36 @@ interface Row {
   readonly strike?: boolean;
 }
 
+interface ColumnProps {
+  id: string;
+  title: string;
+  hint: string;
+  rows: Row[];
+  empty: string;
+  /** থাকলে খোলা ফাইলের নিচে "এডিট" বোতাম আসে (শুধু Working Directory-তে) */
+  onEdit?: (name: string, content: string) => void;
+}
+
 /**
  * এক কলামের ফাইলের তালিকা। ফাইলে ক্লিক বা ট্যাপ করলে নিচে তার লেখা খোলে,
- * তাই মোবাইলেও (যেখানে hover নেই) লেখা দেখা যায়।
+ * তাই মোবাইলেও (যেখানে hover নেই) লেখা দেখা যায়। Working Directory-তে সেখান থেকেই এডিট করা যায়।
  */
-function Column({ id, title, hint, rows, empty }: { id: string; title: string; hint: string; rows: Row[]; empty: string }) {
+function Column({ id, title, hint, rows, empty, onEdit }: ColumnProps) {
   const [open, setOpen] = useState<string | null>(null);
+  const [editing, setEditing] = useState<string | null>(null);
+  const [draft, setDraft] = useState("");
+
+  const save = (name: string) => {
+    onEdit?.(name, draft);
+    setEditing(null);
+  };
+  const onEditorKey = (e: KeyboardEvent<HTMLTextAreaElement>, name: string) => {
+    if (e.key === "Escape") setEditing(null);
+    if (e.key === "Enter" && (e.ctrlKey || e.metaKey)) {
+      e.preventDefault();
+      save(name);
+    }
+  };
   return (
     <div className="flex min-w-0 flex-col rounded-xl bg-white p-3 ring-1 ring-ink/10">
       <h3 className="text-sm font-semibold text-ink">{title}</h3>
@@ -46,7 +71,10 @@ function Column({ id, title, hint, rows, empty }: { id: string; title: string; h
               <li key={r.name} className="rounded-lg bg-cloud">
                 <button
                   type="button"
-                  onClick={() => setOpen(isOpen ? null : r.name)}
+                  onClick={() => {
+                    setOpen(isOpen ? null : r.name);
+                    setEditing(null);
+                  }}
                   aria-expanded={isOpen}
                   aria-controls={panelId}
                   aria-label={`${ui.showContent(r.name)}${r.badge ? ` (${BADGE[r.badge].label})` : ""}`}
@@ -61,13 +89,58 @@ function Column({ id, title, hint, rows, empty }: { id: string; title: string; h
                     </span>
                   )}
                 </button>
-                {isOpen && (
-                  <pre
-                    id={panelId}
-                    className="max-h-40 overflow-auto whitespace-pre-wrap break-words border-t border-ink/10 px-2 py-1.5 font-mono text-xs text-ink"
-                  >
-                    {r.content === undefined ? ui.deletedFile : r.content === "" ? ui.emptyFile : r.content}
-                  </pre>
+                {isOpen && editing === r.name && (
+                  <div id={panelId} className="border-t border-ink/10 p-2">
+                    <textarea
+                      value={draft}
+                      onChange={(e) => setDraft(e.target.value)}
+                      onKeyDown={(e) => onEditorKey(e, r.name)}
+                      autoFocus
+                      spellCheck={false}
+                      rows={Math.min(10, Math.max(3, draft.split("\n").length + 1))}
+                      aria-label={ui.editorLabel(r.name)}
+                      className="w-full resize-y rounded-md bg-white p-2 font-mono text-[16px] text-ink ring-1 ring-ink/20 focus:outline-2 focus:outline-teal sm:text-xs"
+                    />
+                    <p className="mt-1 text-[11px] text-slate">{ui.editorHint}</p>
+                    <div className="mt-1.5 flex justify-end gap-2">
+                      <button
+                        type="button"
+                        onClick={() => setEditing(null)}
+                        className="rounded-md px-2.5 py-1 text-xs font-semibold text-ink ring-1 ring-ink/20 hover:bg-white"
+                      >
+                        {ui.editorCancel}
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => save(r.name)}
+                        className="rounded-md bg-teal px-2.5 py-1 text-xs font-semibold text-white hover:brightness-110"
+                      >
+                        {ui.editorSave}
+                      </button>
+                    </div>
+                  </div>
+                )}
+                {isOpen && editing !== r.name && (
+                  <div id={panelId} className="border-t border-ink/10">
+                    <pre className="max-h-40 overflow-auto whitespace-pre-wrap break-words px-2 py-1.5 font-mono text-xs text-ink">
+                      {r.content === undefined ? ui.deletedFile : r.content === "" ? ui.emptyFile : r.content}
+                    </pre>
+                    {onEdit && r.content !== undefined && (
+                      <div className="flex justify-end px-2 pb-1.5">
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setDraft(r.content ?? "");
+                            setEditing(r.name);
+                          }}
+                          aria-label={ui.editorOpen(r.name)}
+                          className="rounded-md px-2.5 py-1 text-xs font-semibold text-teal ring-1 ring-teal/30 hover:bg-teal/5"
+                        >
+                          {ui.editorEdit}
+                        </button>
+                      </div>
+                    )}
+                  </div>
                 )}
               </li>
             );
@@ -78,7 +151,7 @@ function Column({ id, title, hint, rows, empty }: { id: string; title: string; h
   );
 }
 
-export function FilePanel({ state }: { state: SimState }) {
+export function FilePanel({ state, onRun }: { state: SimState; onRun: (command: string) => void }) {
   const { workdir, repo } = state;
   const index = repo?.index ?? {};
   const head = repo ? headCommit(repo) : null;
@@ -158,7 +231,14 @@ export function FilePanel({ state }: { state: SimState }) {
         </p>
       )}
       <div className="grid grid-cols-1 gap-2 sm:grid-cols-3">
-        <Column id="work" title={ui.workdirTitle} hint={ui.workdirHint} rows={workRows} empty={ui.workdirEmpty} />
+        <Column
+          id="work"
+          title={ui.workdirTitle}
+          hint={ui.workdirHint}
+          rows={workRows}
+          empty={ui.workdirEmpty}
+          onEdit={(name, content) => onRun(editCommand(name, content))}
+        />
         <Column
           id="stage"
           title={ui.stagingTitle}
