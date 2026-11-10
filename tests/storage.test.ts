@@ -1,6 +1,6 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { applyCommand, freshSession, MAX_LOG, undo } from "../src/lib/session";
-import { loadSession, parseSaved, saveSession, serializeSession } from "../src/lib/storage";
+import { loadSession, parseSaved, saveSession, serializeSession, watchSession, type LoadResult } from "../src/lib/storage";
 import { runAll } from "../src/lib/git/repo";
 
 const sample = () =>
@@ -137,6 +137,25 @@ describe("storage", () => {
     const kb = serializeSession(s).length / 1024;
     // পুরোনো পদ্ধতিতে ১৮০ কমান্ডেই ~৫MB হতো
     expect(kb).toBeLessThan(1500);
+  });
+
+  it("reports saves and resets from other tabs, and ignores other keys", () => {
+    let listener: ((e: { key: string | null; newValue: string | null }) => void) | null = null;
+    vi.stubGlobal("window", {
+      addEventListener: (_: string, fn: typeof listener) => (listener = fn),
+      removeEventListener: () => (listener = null),
+    });
+    const seen: LoadResult["status"][] = [];
+    const stop = watchSession((r) => seen.push(r.status));
+    const fire = (key: string | null, newValue: string | null) => listener?.({ key, newValue });
+
+    fire("msilabs-git-simulator:v1", serializeSession(sample()));
+    fire("msilabs-git-simulator:v1", null); // অন্য tab-এ "নতুন করে শুরু"
+    fire(null, null); // পুরো localStorage মোছা
+    fire("another-app", "x");
+    expect(seen).toEqual(["ok", "empty", "empty"]);
+    stop();
+    expect(listener).toBeNull();
   });
 
   it("returns false when saving fails and true otherwise", () => {

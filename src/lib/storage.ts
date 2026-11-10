@@ -92,6 +92,19 @@ export function loadSession(): LoadResult {
   return parseSaved(raw);
 }
 
+/**
+ * অন্য tab-এ সেভ বদলালে জানায় (যে tab নিজে সেভ করে, তার কাছে এই event আসে না)।
+ * এতে দুই tab একে অপরের কাজ মুছে ফেলে না। ফেরত দেওয়া ফাংশন শোনা বন্ধ করে।
+ */
+export function watchSession(onChange: (result: LoadResult) => void): () => void {
+  const listener = (e: StorageEvent) => {
+    // key null মানে পুরো localStorage মোছা হয়েছে
+    if (e.key === KEY || e.key === null) onChange(parseSaved(e.newValue));
+  };
+  window.addEventListener("storage", listener);
+  return () => window.removeEventListener("storage", listener);
+}
+
 export function serializeSession(s: Session): string {
   const saved: SavedV2 = {
     v: 2,

@@ -4,7 +4,7 @@ import { useCallback, useEffect, useRef, useState, type KeyboardEvent } from "re
 import { msg } from "@/lib/git/messages";
 import { applyCommand, freshSession, promptFor, undo as undoSession, type Session } from "@/lib/session";
 import { STARTER_STEPS } from "@/lib/steps";
-import { clearSession, loadSession, saveSession } from "@/lib/storage";
+import { clearSession, loadSession, saveSession, watchSession } from "@/lib/storage";
 import { ui } from "@/lib/ui-text";
 import { Terminal } from "./Terminal";
 import { FilePanel } from "./FilePanel";
@@ -19,6 +19,8 @@ export function Simulator() {
   const [saveFailed, setSaveFailed] = useState(false);
   const [confirmReset, setConfirmReset] = useState(false);
   const dialogRef = useRef<HTMLDivElement>(null);
+  // অন্য tab থেকে আসা অবস্থা আবার সেভ করার দরকার নেই (সেটা আগেই সেভ করা)
+  const fromOtherTab = useRef(false);
 
   // প্রথমবার: সেভ করা অবস্থা ফিরিয়ে আনা। localStorage একটা বাইরের সিস্টেম, আর সার্ভারে নেই;
   // hydration-এর আগে পড়লে সার্ভারের HTML আর প্রথম রেন্ডার মিলবে না, তাই effect-এ পড়ি।
@@ -34,9 +36,23 @@ export function Simulator() {
     /* eslint-enable react-hooks/set-state-in-effect */
   }, []);
 
+  useEffect(
+    () =>
+      watchSession((result) => {
+        if (result.status === "corrupt") return;
+        fromOtherTab.current = true;
+        setSession(result.status === "ok" ? result.session : freshSession(msg.resetDone));
+      }),
+    [],
+  );
+
   useEffect(() => {
-    // eslint-disable-next-line react-hooks/set-state-in-effect -- সেভ সফল হলো কি না, বাইরের স্টোরেজ থেকে জানা যায়
-    if (loaded) setSaveFailed(!saveSession(session));
+    if (!loaded) return;
+    if (fromOtherTab.current) {
+      fromOtherTab.current = false;
+      return;
+    }
+    setSaveFailed(!saveSession(session));
   }, [session, loaded]);
 
   const run = useCallback((command: string) => setSession((s) => applyCommand(s, command)), []);

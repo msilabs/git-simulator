@@ -112,3 +112,19 @@ test("revert conflict banner, stash note and reset", async ({ page }) => {
   await expect(log(page)).toContainText("HEAD is now at");
   await expect(page.locator("svg circle")).toHaveCount(2);
 });
+
+test("two tabs stay in sync instead of overwriting each other's progress", async ({ page, context }) => {
+  await run(page, "git init", "touch from-first-tab");
+  const second = await context.newPage();
+  await second.goto("/");
+  await expect(second.getByText("from-first-tab").first()).toBeVisible();
+
+  await run(second, "touch from-second-tab");
+  await expect(page.getByText("from-second-tab").first()).toBeVisible();
+
+  await run(page, "touch third");
+  await second.reload();
+  for (const name of ["from-first-tab", "from-second-tab", "third"]) {
+    await expect(second.getByText(name, { exact: true }).first()).toBeVisible();
+  }
+});

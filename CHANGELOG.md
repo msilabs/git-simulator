@@ -16,6 +16,7 @@ All notable changes to this project are documented here. The format follows [Kee
 - `git add .` now resolves a conflicted file that was deleted to settle the conflict.
 - `git status` output now matches real Git line for line: no blank line right after "On branch", no "unstage" hints during a merge, and no closing hint once all merge conflicts are fixed.
 - `git commit` with unresolved conflicts lists the files with `U`, like real Git.
+- Two open tabs no longer overwrite each other's progress. Each tab picks up saves (and "start over") from the other.
 - Undo after a reload restores the starter step that was saved, instead of dropping back one step.
 - Typing a name that exists on every JavaScript object (`toString`, `constructor`, `git constructor`, `git switch toString` and so on) no longer crashes the page. These names now work like any other file or branch name. `__proto__` is refused as a file or branch name.
 - The crash screen first offers a plain reload, which keeps saved progress. "Start over" is now the second option.
