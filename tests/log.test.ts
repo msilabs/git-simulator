@@ -77,3 +77,109 @@ describe("git log", () => {
     expect(exec([...ONE_COMMIT, "git log --graph"]).ok).toBe(false);
   });
 });
+
+describe("git log --graph, --all, -n and git show", () => {
+  const MERGED = [
+    "git init",
+    'edit a "1"',
+    "git add .",
+    'git commit -m "base"',
+    "git switch -c f",
+    'edit b "1"',
+    "git add .",
+    'git commit -m "f1"',
+    'edit b "2"',
+    'git commit -am "f2"',
+    "git switch main",
+    'edit a "2"',
+    'git commit -am "m1"',
+    "git merge f",
+  ];
+  const strip = (out: string) => out.replace(/[0-9a-f]{7}/g, "ID").replace(/ \([^)]*\)/g, "");
+
+  it("draws the graph like real Git (output checked against git 2.56)", () => {
+    expect(strip(exec([...MERGED, "git log --oneline --graph"]).output)).toBe(
+      ["*   ID Merge branch 'f'", "|\\", "| * ID f2", "| * ID f1", "* | ID m1", "|/", "* ID base"].join("\n"),
+    );
+  });
+
+  it("draws a second merge into an existing column and a collapse that starts on the commit line", () => {
+    const two = exec([...MERGED, "git switch f", 'edit b "3"', 'git commit -am "f3"', "git switch main", "git merge f", "git log --oneline --graph"]);
+    expect(strip(two.output)).toBe(
+      ["*   ID Merge branch 'f'", "|\\", "| * ID f3", "* | ID Merge branch 'f'", "|\\|", "| * ID f2", "| * ID f1", "* | ID m1", "|/", "* ID base"].join("\n"),
+    );
+    const three = exec([
+      "git init",
+      'edit a "1"',
+      "git add .",
+      'git commit -m "base"',
+      "git switch -c x",
+      'edit x "1"',
+      "git add .",
+      'git commit -m "x1"',
+      "git switch main",
+      "git switch -c y",
+      'edit y "1"',
+      "git add .",
+      'git commit -m "y1"',
+      "git switch main",
+      'edit a "2"',
+      'git commit -am "m1"',
+      "git merge x",
+      "git merge y",
+      "git log --oneline --graph",
+    ]);
+    expect(strip(three.output)).toBe(
+      ["*   ID Merge branch 'y'", "|\\", "| * ID y1", "* |   ID Merge branch 'x'", "|\\ \\", "| * | ID x1", "| |/", "* / ID m1", "|/", "* ID base"].join("\n"),
+    );
+  });
+
+  it("--all shows every branch, and -n limits the count", () => {
+    const s = state([
+      "git init",
+      'edit a "1"',
+      "git add .",
+      'git commit -m "base"',
+      "git switch -c f",
+      'edit b "1"',
+      "git add .",
+      'git commit -m "f1"',
+      "git switch main",
+      'edit a "2"',
+      'git commit -am "m1"',
+    ]);
+    expect(strip(exec(["git log --oneline --graph --all"], s).output)).toBe(["* ID m1", "| * ID f1", "|/", "* ID base"].join("\n"));
+    expect(strip(exec(["git log --oneline"], s).output)).toBe("ID m1\nID base");
+    expect(exec(["git log --oneline --all"], s).output.split("\n")).toHaveLength(3);
+    for (const cmd of ["git log --oneline -n 1", "git log --oneline -n1", "git log --oneline -1", "git log --oneline --max-count=1"]) {
+      expect(strip(exec([cmd], s).output), cmd).toBe("ID m1");
+    }
+    expect(exec(["git log --graph"], s).ok).toBe(false);
+    expect(exec(["git log -n"], s).ok).toBe(false);
+  });
+
+  it("git show prints the commit and its diff, or only the header for a merge", () => {
+    const r = exec([...MERGED, "git show f"]);
+    expect(strip(r.output)).toBe(
+      [
+        "commit ID",
+        "Author: Learner <learner@example.com>",
+        "",
+        "    f2",
+        "",
+        "diff --git a/b b/b",
+        "index ID..ID 100644",
+        "--- a/b",
+        "+++ b/b",
+        "@@ -1 +1 @@",
+        "-1",
+        "+2",
+      ].join("\n"),
+    );
+    const merge = exec([...MERGED, "git show"]);
+    expect(strip(merge.output)).toBe("commit ID\nMerge: ID ID\nAuthor: Learner <learner@example.com>\n\n    Merge branch 'f'");
+    expect(exec([...MERGED, "git show HEAD~2"]).output).toContain("new file mode 100644");
+    expect(exec([...MERGED, "git show nope"]).ok).toBe(false);
+    expect(exec(["git init", "git show"]).output).toBe("fatal: your current branch 'main' does not have any commits yet");
+  });
+});

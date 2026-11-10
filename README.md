@@ -21,6 +21,8 @@ No real Git runs here. A small, pure TypeScript model of Git lives in `src/lib/g
 | `git commit --amend [-m "message"]` | Replace the last commit with a new one (same parent, new snapshot or message) |
 | `git commit -a -m "message"` / `-am` | Stage every modified or deleted tracked file, then commit (untracked files are left out) |
 | `git log` / `git log --oneline` | Show history reachable from the current branch |
+| `git log --oneline --graph [--all]` / `-n <N>` | Draw branches and merges as an ASCII graph like real Git / show only the newest N commits |
+| `git show [<commit>]` | Show a commit and the diff it introduced |
 | `git branch` / `git branch <name>` | List branches / create a branch at the current commit |
 | `git switch <name>` / `git switch -c <name>` | Switch branches / create and switch |
 | `git checkout <name>` / `git checkout -b <name>` | Same as above, using the older command |
@@ -37,7 +39,7 @@ No real Git runs here. A small, pure TypeScript model of Git lives in `src/lib/g
 | `git stash list` / `pop` / `apply` / `drop` / `clear` | List, bring back, or delete stashed changes (`stash@{n}` picks an entry) |
 | `git rm <file>` / `git rm --cached <file>` | Delete a tracked file and stage the deletion / stop tracking it but keep the file (`-f` to force, `-r .` for everything) |
 
-Simulator-only helpers: `touch <file>`, `edit <file> "text"` (use `\n` for new lines), `rm <file>`, `ls`, `cat <file>`, `help`, `clear`.
+Simulator-only helpers: `touch <file>`, `edit <file> "text"` (use `\n` for new lines), `echo "text" > <file>` / `>> <file>` (overwrite / append a line), `rm <file>`, `ls`, `cat <file>`, `pwd`, `help`, `clear`.
 
 **Tab** completes command, file, branch and stash names like a real shell: one match is filled in, several matches fill in their common part, and a second Tab lists them. On an empty line, Tab moves focus as usual.
 
@@ -60,7 +62,7 @@ Other Git commands are recognised as "not in the simulator yet".
 - The `index` line in `git diff` uses short fake blob ids (an empty file still gets the real `e69de29`).
 - Commits that no branch can reach (after `git branch -D`) disappear from the graph and log, as in real Git. The simulator also never garbage-collects them.
 - The merge base is the newest common ancestor. Real Git also handles multiple merge bases.
-- `git log` shows no `Date` line, uses a fixed author and does not open a pager.
+- `git log` shows no `Date` line, uses a fixed author and does not open a pager. `--graph` works only together with `--oneline`, and lines that jump more than one column are drawn in one step. `git show` on a merge commit shows only the header.
 - `git commit` without `-m` asks for a message instead of opening an editor.
 - Line counts in `insertions(+)/deletions(-)` ignore whether a file ends with a newline.
 - There is no detached HEAD, and `git checkout <file>` is not supported.

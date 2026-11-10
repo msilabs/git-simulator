@@ -19,7 +19,7 @@ export interface Completion {
 const OPTIONS: Readonly<Record<string, readonly string[]>> = {
   add: ["--all"],
   commit: ["--all", "--amend", "--message", "--no-edit"],
-  log: ["--oneline"],
+  log: ["--all", "--graph", "--oneline"],
   branch: ["--delete", "--move"],
   switch: ["--create"],
   merge: ["--abort", "--continue"],
@@ -54,6 +54,7 @@ function choices(state: SimState, words: readonly string[], current: string): st
   if (words.length === 0) return ["git", ...Object.keys(SHELL_COMMANDS)].sort();
 
   const [program, sub] = words;
+  if (program === "echo") return [">", ">>"].includes(words[words.length - 1]) ? files : [];
   if (program !== "git") return ["edit", "cat", "rm", "touch"].includes(program) ? files : [];
   if (words.length === 1) return Object.keys(GIT_COMMANDS).sort();
 
@@ -84,6 +85,7 @@ function choices(state: SimState, words: readonly string[], current: string): st
     case "reset":
       return rest.includes("--") ? tracked(repo) : ["HEAD", ...branches(repo)];
     case "revert":
+    case "show":
       return ["HEAD", ...branches(repo)];
     case "stash":
       if (rest.length === 0) return STASH_SUBCOMMANDS;

@@ -59,3 +59,25 @@ describe("helper commands", () => {
     expect(r.state).toBe(s);
   });
 });
+
+describe("echo and pwd", () => {
+  it("echo prints, > overwrites and >> appends a line", () => {
+    expect(runCommand(EMPTY_STATE, 'echo "hello world"').output).toBe("hello world");
+    const s = state(['echo "one" > notes.txt', 'echo "two" >> notes.txt', "echo three >>notes.txt"]);
+    expect(s.workdir["notes.txt"]).toBe("one\ntwo\nthree");
+    expect(state(['echo "new" > notes.txt'], s).workdir["notes.txt"]).toBe("new");
+    expect(state(['echo "first" >> fresh.txt']).workdir["fresh.txt"]).toBe("first");
+  });
+
+  it("echo explains tracked changes and rejects bad targets", () => {
+    const r = exec(["git init", 'edit a "x"', "git add a", 'git commit -m "a"', 'echo "y" >> a']);
+    expect(r.explanation).toContain("modified");
+    expect(runCommand(EMPTY_STATE, "echo hi >").ok).toBe(false);
+    expect(runCommand(EMPTY_STATE, "echo hi > dir/x").ok).toBe(false);
+    expect(runCommand(EMPTY_STATE, "echo hi > a b").ok).toBe(false);
+  });
+
+  it("pwd shows the project folder", () => {
+    expect(runCommand(EMPTY_STATE, "pwd").output).toBe("/home/learner/project");
+  });
+});

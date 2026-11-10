@@ -64,8 +64,20 @@ export const msg = {
 
   /* ---------- log ---------- */
   logNoCommits: (branch: string) => `${branch} branch-এ এখনো কোনো commit নেই। আগে একটা commit করুন।`,
-  logShown: (count: number, branch: string) =>
-    `${branch} থেকে পেছনের দিকে মোট ${bn(count)}টা commit, সবচেয়ে নতুনটা ওপরে। HEAD মানে আপনি এখন যেখানে আছেন।`,
+  logShown: (count: number, branch: string | null) =>
+    branch
+      ? `${branch} থেকে পেছনের দিকে মোট ${bn(count)}টা commit, সবচেয়ে নতুনটা ওপরে। HEAD মানে আপনি এখন যেখানে আছেন।`
+      : `সব branch মিলিয়ে মোট ${bn(count)}টা commit, সবচেয়ে নতুনটা ওপরে। HEAD মানে আপনি এখন যেখানে আছেন।`,
+  logGraph:
+    "বাঁ পাশের রেখাগুলো ইতিহাসের ছবি: `*` একেকটা commit, `|` একই শাখা নিচে চলেছে, `|\\` শাখা আলাদা হলো (merge-এর দুই parent), `|/` দুই শাখা এক জায়গায় মিলল।",
+  logGraphNeedsOneline: "সিমুলেটরে `--graph` শুধু `--oneline`-এর সাথে চলে: `git log --oneline --graph` (সব branch দেখতে সাথে `--all`)।",
+
+  /* ---------- show ---------- */
+  showShown: (id: string) => `commit ${id}-এর বিবরণ, আর তার আগের commit থেকে কী বদলেছে: \`-\` লাইন বাদ গেছে, \`+\` লাইন যোগ হয়েছে।`,
+  showMerge: (id: string) =>
+    `${id} একটা merge commit (দুই parent)। সাধারণ merge-এ নতুন কোনো লাইন লেখা হয় না, তাই আসল Git-ও এখানে diff প্রায় দেখায় না।`,
+  showUnknown: (rev: string) => `"${rev}" নামে কোনো commit নেই। \`git log --oneline\` দিয়ে id দেখুন, অথবা \`HEAD\`, \`HEAD~1\` লিখুন।`,
+  showTooMany: "সিমুলেটরে একবারে একটা commit-ই দেখা যায়।",
 
   /* ---------- branch ---------- */
   branchListEmpty: "এখনো কোনো commit নেই, তাই কোনো branch তালিকায় দেখা যাচ্ছে না। প্রথম commit-এর পর main দেখা যাবে।",
@@ -309,6 +321,13 @@ export const msg = {
   catMissing: (name: string) => `${name} নামে কোনো ফাইল নেই। \`ls\` লিখে তালিকা দেখুন।`,
   catEmpty: (name: string) => `${name} ফাইলটা খালি।`,
   catShown: (name: string) => `ওপরে ${name}-এর লেখা।`,
+  pwdShown: "এটা আপনার প্রজেক্ট ফোল্ডার। সিমুলেটরে ফোল্ডার একটাই, তাই সব কমান্ড এখানেই চলে।",
+  echoShown: "echo শুধু লেখাটা দেখায়। ফাইলে লিখতে `echo \"লেখা\" > file` (বদলে দেয়) বা `>> file` (শেষে যোগ করে)।",
+  echoMissingFile: "`>` বা `>>`-এর পরে ফাইলের নাম দিন, যেমন `echo \"hello\" >> notes.txt`।",
+  echoAppended: (name: string, tracked: boolean) =>
+    tracked
+      ? `${name}-এর শেষে নতুন লাইন যোগ হলো। Git দেখছে ফাইলটা বদলেছে (modified); commit-এ নিতে আগে \`git add ${name}\`।`
+      : `${name}-এর শেষে নতুন লাইন যোগ হলো। ফাইলটা এখনো untracked।`,
   helpShown: "যেকোনো কমান্ড লিখে Enter চাপুন। ↑/↓ দিয়ে আগের কমান্ড ফিরিয়ে আনা যায়। কমান্ড, ফাইল বা branch-এর নাম অর্ধেক লিখে Tab চাপলে বাকিটা বসে যায়; দুইবার Tab দিলে সব মিল দেখায়।",
 
   /* ---------- শুরুর ধাপ ---------- */
@@ -325,7 +344,8 @@ export const HELP_ENTRIES: ReadonlyArray<readonly [string, string]> = [
   ["git status", "কোন branch-এ আছেন আর কোন ফাইলের কী অবস্থা দেখায়"],
   ["git add <file> | git add .", "ফাইল staging area-তে পাঠায়"],
   ['git commit [-a] -m "message"', "staged ফাইলগুলো নিয়ে নতুন commit বানায় (-a: বদলানো tracked ফাইল নিজে stage করে)"],
-  ["git log [--oneline]", "commit-এর ইতিহাস দেখায়"],
+  ["git log [--oneline] [--graph] [--all] [-n N]", "commit-এর ইতিহাস দেখায় (--graph: রেখায় শাখা)"],
+  ["git show [<commit>]", "একটা commit আর তার বদল দেখায়"],
   ["git branch [<name>]", "branch-এর তালিকা দেখায় / নতুন branch বানায়"],
   ["git switch [-c] <name>", "অন্য branch-এ যায় (-c দিলে নতুন বানিয়ে)"],
   ["git checkout [-b] <name>", "switch-এর পুরোনো রূপ (-b দিলে নতুন বানিয়ে)"],
@@ -347,6 +367,8 @@ export const HELP_ENTRIES: ReadonlyArray<readonly [string, string]> = [
   ["ls", "ফাইলের তালিকা দেখায়"],
   ["cat <file>", "ফাইলের লেখা দেখায়"],
   ["rm <file>", "ফোল্ডার থেকে ফাইল মোছে"],
+  ['echo "লেখা" [>|>> <file>]', "লেখা দেখায় / ফাইলে লেখে (>> শেষে যোগ করে)"],
+  ["pwd", "কোন ফোল্ডারে আছেন দেখায়"],
   ["help", "এই তালিকা দেখায়"],
   ["clear", "টার্মিনাল পরিষ্কার করে (ফাইল বা commit মোছে না)"],
 ];

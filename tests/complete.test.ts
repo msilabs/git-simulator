@@ -31,7 +31,8 @@ describe("Tab completion", () => {
 
   it("completes command names and git subcommands", () => {
     expect(complete(EMPTY_STATE, "gi")?.text).toBe("git ");
-    expect(complete(EMPTY_STATE, "e")?.text).toBe("edit ");
+    expect(complete(EMPTY_STATE, "e")?.candidates).toEqual(["echo", "edit"]);
+    expect(complete(EMPTY_STATE, "ed")?.text).toBe("edit ");
     expect(complete(REPO, "git sw")?.text).toBe("git switch ");
     expect(complete(REPO, "git st")?.candidates).toEqual(["stash", "status"]);
     expect(complete(REPO, "git re")?.candidates).toEqual(["reset", "restore", "revert"]);

@@ -19,6 +19,9 @@ import { gitRm } from "./gitRm";
 import { reset } from "./reset";
 import { revert } from "./revert";
 import { stash } from "./stash";
+import { show } from "./show";
+import { echo } from "./echo";
+import { pwd } from "./pwd";
 import { touch } from "./touch";
 import { edit } from "./edit";
 import { ls } from "./ls";
@@ -49,6 +52,7 @@ export const GIT_COMMANDS: Readonly<Record<string, GitCommand>> = {
   reset: { run: reset },
   revert: { run: revert },
   stash: { run: stash },
+  show: { run: show },
 };
 
 /** সিমুলেটরের সহায়ক কমান্ড (Git নয়) */
@@ -60,4 +64,6 @@ export const SHELL_COMMANDS: Readonly<Record<string, CommandHandler>> = {
   rm,
   help,
   clear,
+  echo,
+  pwd,
 };

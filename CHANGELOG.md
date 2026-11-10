@@ -5,6 +5,8 @@ All notable changes to this project are documented here. The format follows [Kee
 ## [Unreleased]
 
 ### Added
+- `git log --graph` (with `--oneline`), `--all` and `-n <N>` / `-<N>`. The graph follows real Git's drawing rules, checked line by line against git 2.56.
+- `git show [<commit>]`, and simulator helpers `echo` (with `>` and `>>`) and `pwd`.
 - Tab completion in the terminal, like a real shell: commands, git subcommands, files (only changed ones for `git add`), branches, stash entries and options. A second Tab lists all matches.
 - `git reset` with `--soft`, `--mixed` and `--hard`, `git reset <file>`, and revisions like `HEAD~1`, `main^`, `HEAD^2` or a commit id. The explanation says how to get back to commits that were left behind.
 - `git revert <commit>`, including line-level merging, conflicts, `git revert --continue`, `--abort` and `--skip`.
