@@ -18,7 +18,8 @@ test("the five starter steps can be clicked through", async ({ page }) => {
   for (const cmd of ["git init", "touch index.html", "git add index.html", 'git commit -m "first commit"', "git log"]) {
     await page.getByRole("button", { name: cmd }).click();
   }
-  await expect(log(page)).toContainText("দারুণ! প্রথম ৫টা কমান্ড শেষ।");
+  await expect(log(page)).toContainText("দারুণ! মিশন শেষ: প্রথম commit");
+  await expect(page.getByTestId("missions")).toContainText("বদল দেখে আবার commit");
   await expect(log(page)).toContainText("(HEAD -> main)");
   await expect(page.locator("svg circle")).toHaveCount(1);
 });

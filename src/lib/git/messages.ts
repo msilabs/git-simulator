@@ -426,8 +426,10 @@ export const msg = {
   helpShown: "যেকোনো কমান্ড লিখে Enter চাপুন। ↑/↓ দিয়ে আগের কমান্ড ফিরিয়ে আনা যায়। কমান্ড, ফাইল বা branch-এর নাম অর্ধেক লিখে Tab চাপলে বাকিটা বসে যায়; দুইবার Tab দিলে সব মিল দেখায়।",
 
   /* ---------- শুরুর ধাপ ---------- */
-  stepsDone:
-    "দারুণ! প্রথম ৫টা কমান্ড শেষ। এবার branch চেষ্টা করুন: `git switch -c feature`, তারপর একটা commit, তারপর `git switch main` আর `git merge feature`।",
+  missionDone: (done: string, number: number, next: string) =>
+    `দারুণ! মিশন শেষ: ${done}। এবার মিশন ${bn(number)}: ${next}। কী করতে হবে তা টার্মিনালের নিচে দেখুন।`,
+  allMissionsDone:
+    "অভিনন্দন! সব মিশন শেষ। আপনি এখন commit, branch, merge, conflict, ভুল ফেরানো, stash আর remote-এর মূল কাজগুলো জানেন। ইচ্ছেমতো অনুশীলন চালিয়ে যান।",
 
   /* ---------- reset বোতাম ---------- */
   resetDone: "সব মুছে নতুন করে শুরু হলো। শুরু করতে লিখুন: `git init`",

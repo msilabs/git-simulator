@@ -52,6 +52,10 @@ In the file panel, tap a working-directory file to see it, then **Edit** to chan
 
 **Tab** completes command, file, branch and stash names like a real shell: one match is filled in, several matches fill in their common part, and a second Tab lists them. On an empty line, Tab moves focus as usual.
 
+## Missions
+
+Below the terminal, a learning path of 11 missions guides you: first commit, diff and a second commit, branches, merge and the graph, a merge conflict, undoing file changes, revert and reset, stash, pushing to a remote, pulling a teammate's work, and a rejected push. Each mission has 2-5 stages that complete by result, not by exact text (so `git add .` counts as well as `git add index.html`). Progress is saved and undo steps back through it. All mission text lives in `src/lib/missions.ts`.
+
 The **↶ undo** button in the top bar steps back one command at a time. Real Git has no such button; the explanation says so.
 
 ### Merge conflicts
@@ -118,7 +122,7 @@ src/lib/git/
   commands/       one file per command + index.ts registry
 src/lib/session.ts  terminal session: run, undo, replay (pure)
 src/lib/storage.ts  localStorage save/load with validation
-src/lib/steps.ts    "first 5 commands" progress
+src/lib/missions.ts the learning path: 11 missions and their stages
 src/lib/ui-text.ts  every Bengali UI label in one place
 src/lib/graph/    pure layout for the SVG commit graph
 src/components/   Terminal, FilePanel, CommitGraph, Simulator
@@ -150,7 +154,7 @@ See [CONTRIBUTING.md](CONTRIBUTING.md) for details.
 
 অনলাইনে চালান: https://msilabs.github.io/git-simulator/
 
-শুরু করতে লিখুন `git init`, তারপর টার্মিনালের নিচের "প্রথম ৫টা কমান্ড" ধাপগুলো অনুসরণ করুন।
+শুরু করতে লিখুন `git init`, তারপর টার্মিনালের নিচের মিশনগুলো একে একে শেষ করুন: প্রথম commit থেকে শুরু করে branch, merge conflict, ভুল ফেরানো, stash আর remote পর্যন্ত মোট ১১টা মিশন।
 
 ## License
 

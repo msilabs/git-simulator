@@ -4,7 +4,8 @@ import { useCallback, useEffect, useRef, useState, type KeyboardEvent } from "re
 import { msg } from "@/lib/git/messages";
 import { applyCommand, freshSession, promptFor, showCompletions, undo as undoSession, type Session } from "@/lib/session";
 import { complete } from "@/lib/git/complete";
-import { STARTER_STEPS } from "@/lib/steps";
+import { MISSIONS, missionAt } from "@/lib/missions";
+import type { MissionView } from "./MissionPanel";
 import { clearSession, loadSession, saveSession, watchSession } from "@/lib/storage";
 import { ui } from "@/lib/ui-text";
 import { Terminal } from "./Terminal";
@@ -86,7 +87,18 @@ export function Simulator() {
   };
 
   const lastPast = session.past[session.past.length - 1];
-  const steps = STARTER_STEPS.map((command, i) => ({ command, done: i < session.step }));
+  const at = missionAt(session.step);
+  const current = MISSIONS[at.index];
+  const mission: MissionView | null = current
+    ? {
+        number: at.index + 1,
+        total: MISSIONS.length,
+        title: current.title,
+        goal: current.goal,
+        stages: current.stages.map((s, i) => ({ label: s.label, done: i < at.done, command: s.command })),
+        all: MISSIONS.map((m, i) => ({ title: m.title, done: i < at.index, current: i === at.index })),
+      }
+    : null;
 
   return (
     <div className="flex min-h-dvh flex-col lg:h-dvh">
@@ -149,7 +161,7 @@ export function Simulator() {
             lines={session.lines}
             history={session.history}
             prompt={promptFor(session.sim)}
-            steps={steps}
+            mission={mission}
             onRun={run}
             complete={(text) => complete(session.sim, text)}
             onListCompletions={listCompletions}

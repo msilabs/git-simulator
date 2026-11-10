@@ -10,7 +10,7 @@ import { runCommand, EMPTY_STATE } from "./git/repo";
 import { has } from "./git/own";
 import { msg } from "./git/messages";
 import type { SimState } from "./git/types";
-import { nextStep, STARTER_STEPS } from "./steps";
+import { MISSIONS, missionAt, nextStep } from "./missions";
 
 export type LineKind = "input" | "output" | "error" | "explain" | "explain-error" | "welcome";
 
@@ -89,8 +89,13 @@ export function applyCommand(s: Session, command: string): Session {
   if (result.output) lines.push(line(result.ok ? "output" : "error", result.output));
   if (result.explanation) lines.push(line(result.ok ? "explain" : "explain-error", result.explanation));
 
-  const step = nextStep(s.step, result.state, command, result.ok);
-  if (step === STARTER_STEPS.length && s.step < step) lines.push(line("welcome", msg.stepsDone));
+  const step = nextStep(s.step, { prev: s.sim, next: result.state, command, ok: result.ok, output: result.output });
+  const before = missionAt(s.step).index;
+  const after = missionAt(step).index;
+  if (after > before) {
+    const next = MISSIONS[after];
+    lines.push(line("welcome", next ? msg.missionDone(MISSIONS[after - 1].title, after + 1, next.title) : msg.allMissionsDone));
+  }
 
   const changed = result.state !== s.sim;
   return compact({
@@ -142,7 +147,7 @@ export function replay(base: SimState, log: readonly string[]): Pick<Session, "s
     const result = runCommand(sim, command);
     if (result.state === sim) continue;
     past.push({ sim, step, command });
-    step = nextStep(step, result.state, command, result.ok);
+    step = nextStep(step, { prev: sim, next: result.state, command, ok: result.ok, output: result.output });
     const next = result.state;
     kept.push(command);
     sim = next;

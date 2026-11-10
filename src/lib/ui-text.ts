@@ -36,7 +36,11 @@ export const ui = {
   terminal: "টার্মিনাল",
   inputLabel: "কমান্ড লিখুন",
   inputPlaceholder: "এখানে লিখুন…",
-  stepsTitle: "প্রথম ৫টা কমান্ড (ক্লিক করলেই চলবে):",
+  missionHeading: (n: number, total: number) => `মিশন ${bn(n)}/${bn(total)}:`,
+  missionAll: "সব মিশন",
+  missionHide: "লুকান",
+  missionShow: "দেখান",
+  missionsAllDone: "সব মিশন শেষ! ইচ্ছেমতো অনুশীলন চালিয়ে যান।",
   stepNumber: (i: number) => `${bn(i + 1)}. `,
 
   /* ফাইল প্যানেল */

@@ -5,18 +5,15 @@ import type { TerminalLine } from "@/lib/storage";
 import type { Completion } from "@/lib/git/complete";
 import { RichText } from "./RichText";
 import { OutputBlock } from "./OutputBlock";
+import { MissionPanel, type MissionView } from "./MissionPanel";
 import { ui } from "@/lib/ui-text";
-
-export interface Step {
-  readonly command: string;
-  readonly done: boolean;
-}
 
 interface TerminalProps {
   lines: readonly TerminalLine[];
   history: readonly string[];
   prompt: string;
-  steps: readonly Step[];
+  /** বর্তমান মিশন; সব শেষ হলে null */
+  mission: MissionView | null;
   onRun: (command: string) => void;
   /** কার্সরের আগের লেখা পূর্ণ করার চেষ্টা (Tab) */
   complete: (before: string) => Completion | null;
@@ -33,7 +30,7 @@ const lineClass: Record<TerminalLine["kind"], string> = {
   welcome: "font-sans text-white",
 };
 
-export function Terminal({ lines, history, prompt, steps, onRun, complete, onListCompletions }: TerminalProps) {
+export function Terminal({ lines, history, prompt, mission, onRun, complete, onListCompletions }: TerminalProps) {
   const [value, setValue] = useState("");
   // history-তে কোথায় আছি; history.length মানে "নতুন লাইন"
   const [cursor, setCursor] = useState<number | null>(null);
@@ -110,7 +107,6 @@ export function Terminal({ lines, history, prompt, steps, onRun, complete, onLis
     }
   };
 
-  const nextStep = steps.findIndex((s) => !s.done);
   // screen reader-এর জন্য: পুরো টার্মিনাল নয়, শুধু শেষ ব্যাখ্যাটা ঘোষণা করি
   const lastExplanation = [...lines].reverse().find((l) => l.kind !== "input" && l.kind !== "output" && l.kind !== "error");
 
@@ -183,35 +179,13 @@ export function Terminal({ lines, history, prompt, steps, onRun, complete, onLis
         {lastExplanation?.text.replace(/`/g, "")}
       </p>
 
-      {nextStep !== -1 && (
-        <div className="border-t border-white/10 px-4 py-3">
-          <p className="mb-2 text-xs font-medium text-slate-300">{ui.stepsTitle}</p>
-          <ol className="flex flex-wrap items-center gap-1.5">
-            {steps.map((step, i) => (
-              <li key={step.command} className="flex items-center gap-1.5">
-                <button
-                  type="button"
-                  onClick={() => {
-                    submit(step.command);
-                    inputRef.current?.focus();
-                  }}
-                  className={`rounded-md px-2 py-1 font-mono text-xs transition ${
-                    step.done
-                      ? "bg-mint/15 text-mint"
-                      : i === nextStep
-                        ? "bg-sun text-ink ring-2 ring-sun/40 hover:brightness-105"
-                        : "bg-white/5 text-slate-300 hover:bg-white/10"
-                  }`}
-                >
-                  {step.done ? "✓ " : ui.stepNumber(i)}
-                  {step.command}
-                </button>
-                {i < steps.length - 1 && <span className="text-slate-500" aria-hidden>→</span>}
-              </li>
-            ))}
-          </ol>
-        </div>
-      )}
+      <MissionPanel
+        mission={mission}
+        onRun={(command) => {
+          submit(command);
+          inputRef.current?.focus();
+        }}
+      />
     </section>
   );
 }

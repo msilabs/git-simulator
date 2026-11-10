@@ -5,6 +5,7 @@ All notable changes to this project are documented here. The format follows [Kee
 ## [Unreleased]
 
 ### Added
+- Missions: a learning path of 11 missions with stages that complete by result, shown below the terminal. The old "first 5 commands" became the first mission, and saved progress carries over.
 - Remotes: `git clone`, `git remote`, `git push` (with `-u` and `--force`), `git fetch`, `git pull` (with Git 2.56's divergent-branch rule, `--no-rebase` and `--ff-only`), `git branch -r/-a/--set-upstream-to`, switching to a branch that only exists on the remote, `git merge origin/main`, and ahead/behind/diverged lines in `git status`. Remote-tracking branches appear in the graph and in `git log --all`. Checked against git 2.56 with a real bare repository: 100 of 102 commands match, the other two are documented simplifications.
 - `teammate`, a simulator helper that pushes an imaginary colleague's commit to the remote.
 - `git config` for `user.name`, `user.email` (used as the author of new commits), `pull.rebase` and `pull.ff`.
