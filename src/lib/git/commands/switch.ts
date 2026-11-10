@@ -1,6 +1,7 @@
 import type { CommandHandler, FileMap, SimState } from "../types";
 import { allPaths, failure, get, has, headTree, isValidBranchName, moveTree, overwrittenError, success, unmergedPaths } from "../helpers";
 import { msg } from "../messages";
+import { upstreamInfo, upstreamLines } from "./status";
 
 type Verb = "switch" | "checkout";
 
@@ -39,7 +40,9 @@ function switchTo(state: SimState, name: string, verb: Verb): ReturnType<Command
   const repo = state.repo!;
   if (name === repo.head) return success(state, `Already on '${name}'`, msg.switchAlready(name));
 
-  const targetId = get(repo.branches, name);
+  // local branch নেই কিন্তু origin/<name> আছে: আসল Git-এর মতো একই নামের tracking branch বানিয়ে সেখানে যাই
+  const remoteId = repo.remote && !has(repo.branches, name) ? get(repo.tracking, name) : undefined;
+  const targetId = get(repo.branches, name) ?? remoteId;
   if (!targetId) {
     if (verb === "checkout" && (has(state.workdir, name) || has(repo.index, name))) {
       return failure(state, `error: unsupported in simulator: git checkout ${name}`, msg.checkoutIsFile(name));
@@ -60,13 +63,28 @@ function switchTo(state: SimState, name: string, verb: Verb): ReturnType<Command
   }
 
   const carried = carriedChanges(moved.workdir, moved.index, target);
-  const output = [...carried, `Switched to branch '${name}'`].join("\n");
-  const explanation =
-    msg.switchDone(name, targetId) +
-    (carried.length ? "\n" + msg.switchCarried(carried.map((l) => l.slice(2))) : "");
+  const tracked = remoteId !== undefined ? `branch '${name}' set up to track '${repo.remote!.name}/${name}'.` : "";
+  const output = [
+    ...carried,
+    remoteId !== undefined ? `Switched to a new branch '${name}'` : `Switched to branch '${name}'`,
+    tracked,
+  ]
+    .filter(Boolean)
+    .join("\n");
+  const explanation = [
+    remoteId !== undefined ? msg.switchFromRemote(name, repo.remote!.name) : msg.switchDone(name, targetId),
+    carried.length ? msg.switchCarried(carried.map((l) => l.slice(2))) : "",
+  ]
+    .filter(Boolean)
+    .join("\n");
+  const branches = remoteId !== undefined ? { ...repo.branches, [name]: remoteId } : repo.branches;
+  const upstream = remoteId !== undefined ? { ...repo.upstream, [name]: name } : repo.upstream;
+  const nextRepo = { ...repo, branches, upstream, index: moved.index, head: name };
+  // আসল Git পুরোনো branch-এ ফিরলে upstream-এর তুলনায় অবস্থাও জানায়
+  const info = remoteId === undefined ? upstreamInfo(nextRepo) : null;
   return success(
-    { ...state, workdir: moved.workdir, repo: { ...repo, index: moved.index, head: name } },
-    output,
+    { ...state, workdir: moved.workdir, repo: nextRepo },
+    info ? `${output}\n${upstreamLines(info).join("\n")}` : output,
     explanation,
   );
 }

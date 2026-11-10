@@ -7,7 +7,7 @@
  *   নিজের জায়গায় থাকে, শুধু branch-এর লেবেল সরে যায়।
  */
 import type { Repo } from "../git/types";
-import { ancestors } from "../git/helpers";
+import { ancestors, has } from "../git/helpers";
 
 export const LANE_COLORS = ["#1ED6A8", "#4F46E5", "#38BDF8", "#F472B6", "#A3E635"] as const;
 
@@ -50,6 +50,8 @@ export interface LabelLayout {
   readonly stack: number;
   /** থাকলে এটা "+N" চিপ, যেখানে এই branch-গুলো লুকানো আছে */
   readonly hidden?: readonly string[];
+  /** remote-tracking branch (origin/main): ফাঁপা লেবেলে আঁকা হয় */
+  readonly remote?: boolean;
 }
 
 export interface GraphLayout {
@@ -72,7 +74,7 @@ export function layoutGraph(repo: Repo | null): GraphLayout {
   // আসল Git-এও এগুলো `git log`-এ দেখা যায় না (পরে garbage collection মুছে ফেলে)।
   const reachable = new Set<string>();
   if (repo) {
-    const tips = [...Object.values(repo.branches), ...(repo.merge ? [repo.merge.theirs] : [])];
+    const tips = [...Object.values(repo.branches), ...Object.values(repo.tracking), ...(repo.merge ? [repo.merge.theirs] : [])];
     for (const tip of tips) for (const id of ancestors(repo, tip)) reachable.add(id);
   }
   const commits = repo
@@ -96,6 +98,15 @@ export function layoutGraph(repo: Repo | null): GraphLayout {
     const id = repo.branches[name];
     byCommit.set(id, [...(byCommit.get(id) ?? []), name]);
   }
+  // remote-tracking branch-গুলো local branch-এর পরে
+  const remoteName = repo.remote?.name;
+  if (remoteName) {
+    for (const b of Object.keys(repo.tracking).sort()) {
+      const id = repo.tracking[b];
+      byCommit.set(id, [...(byCommit.get(id) ?? []), `${remoteName}/${b}`]);
+    }
+  }
+  const isRemote = (name: string) => remoteName !== undefined && name.startsWith(`${remoteName}/`) && !has(repo.branches, name);
   const visibleCount = (n: number) => Math.min(n, MAX_LABELS);
   const maxStack = Math.max(1, ...[...byCommit.values()].map((names) => visibleCount(names.length)));
   const padTop = Math.max(PAD_TOP, NODE_CLEARANCE + maxStack * LABEL_STEP + 16);
@@ -137,8 +148,9 @@ export function layoutGraph(repo: Repo | null): GraphLayout {
     const node = pos.get(id)!;
     const shown = names.length > MAX_LABELS ? names.slice(0, MAX_LABELS - 1) : names;
     shown.forEach((name, stack) => {
-      const lane = laneOf.get(name) ?? node.lane;
-      labels.push({ branch: name, commitId: id, isHead: name === repo.head, color: laneColor(lane), stack });
+      const remote = isRemote(name);
+      const lane = laneOf.get(name) ?? (remote ? laneOf.get(name.slice(remoteName!.length + 1)) : undefined) ?? node.lane;
+      labels.push({ branch: name, commitId: id, isHead: name === repo.head, color: laneColor(lane), stack, ...(remote ? { remote } : {}) });
     });
     if (shown.length < names.length) {
       const hidden = names.slice(shown.length);

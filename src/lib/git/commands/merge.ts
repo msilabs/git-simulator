@@ -1,9 +1,11 @@
 import type { CommandHandler, Commit, ConflictKind, FileMap, MergeState, SimState } from "../types";
 import {
+  authorField,
   allPaths,
   diffstatLines,
   failure,
   get,
+  has,
   headCommit,
   isAncestor,
   makeCommitId,
@@ -11,6 +13,7 @@ import {
   modeLines,
   moveTree,
   overwrittenError,
+  resolveRev,
   setFile,
   success,
   summaryLine,
@@ -125,12 +128,30 @@ export const merge: CommandHandler = (state, args) => {
   if (args.length > 1) return failure(state, `error: unsupported in simulator: ${args[1]}`, msg.mergeTooMany);
 
   const name = args[0];
-  const theirsId = get(repo.branches, name);
+  const theirsId = resolveRev(repo, name);
   if (!theirsId) return failure(state, `merge: ${name} - not something we can merge`, msg.mergeNotFound(name));
+  if (name === repo.head) return success(state, "Already up to date.", msg.mergeSelf(name));
+
+  // আসল Git-এর মেসেজ: local branch, remote-tracking branch, নাকি সরাসরি commit
+  const what = has(repo.branches, name)
+    ? `branch '${name}'`
+    : repo.remote && name.startsWith(`${repo.remote.name}/`)
+      ? `remote-tracking branch '${name}'`
+      : `commit '${name}'`;
+  const into = repo.head === "main" || repo.head === "master" ? "" : ` into ${repo.head}`;
+  return mergeRevision(state, theirsId, name, `Merge ${what}${into}`);
+};
+
+/**
+ * `theirsId` commit-কে বর্তমান branch-এ আনে: আগেই থাকলে "Already up to date.", পারলে fast-forward,
+ * নাহলে merge commit (বা conflict-এ থামা)। `name` আউটপুট আর ব্যাখ্যায় দেখায়, `label` conflict চিহ্নে।
+ * `git merge` আর `git pull` দুটোই এটা ব্যবহার করে।
+ */
+export function mergeRevision(state: SimState, theirsId: string, name: string, message: string, label = name): ReturnType<CommandHandler> {
+  const repo = state.repo!;
   const theirs = repo.commits[theirsId];
   const ours = headCommit(repo);
 
-  if (name === repo.head) return success(state, "Already up to date.", msg.mergeSelf(name));
   if (ours && isAncestor(repo, theirsId, ours.id)) {
     return success(state, "Already up to date.", msg.mergeUpToDate(name, repo.head));
   }
@@ -176,7 +197,7 @@ export const merge: CommandHandler = (state, args) => {
 
   const baseId = mergeBase(repo, ours.id, theirsId);
   const base = baseId ? repo.commits[baseId].files : {};
-  const { result, conflicts, autoMerged } = threeWay(base, ours.files, theirs.files, name);
+  const { result, conflicts, autoMerged } = threeWay(base, ours.files, theirs.files, label);
 
   // working directory-তে যা বসবে: মেলানো ফাইল + conflict চিহ্নসহ ফাইল
   let target: FileMap = result;
@@ -190,8 +211,6 @@ export const merge: CommandHandler = (state, args) => {
     );
   }
 
-  // আসল Git main/master-এ merge করলে " into <branch>" লেখে না।
-  const message = `Merge branch '${name}'${repo.head === "main" || repo.head === "master" ? "" : ` into ${repo.head}`}`;
   const conflictPaths = new Set(conflicts.map((c) => c.path));
   const autoLines = autoMerged.map((p) => `Auto-merging ${p}`);
   const autoExplain = autoMerged.filter((p) => !conflictPaths.has(p));
@@ -208,7 +227,7 @@ export const merge: CommandHandler = (state, args) => {
       unmerged: Object.fromEntries(conflicts.map((c) => [c.path, c.kind])),
       touched: allPaths(ours.files, target).filter((p) => get(ours.files, p) !== get(target, p)),
     };
-    const lines = [...autoLines, ...conflictLines(conflicts, name), "Automatic merge failed; fix conflicts and then commit the result."];
+    const lines = [...autoLines, ...conflictLines(conflicts, label), "Automatic merge failed; fix conflicts and then commit the result."];
     const explanation = [autoExplain.length ? msg.mergeAutoMerged(autoExplain) : "", msg.mergeConflict([...conflictPaths], name)]
       .filter(Boolean)
       .join("\n");
@@ -228,6 +247,7 @@ export const merge: CommandHandler = (state, args) => {
     files: result,
     time,
     branch: repo.head,
+    ...authorField(repo),
   };
   const changes = treeChanges(ours.files, result);
   const output = [
@@ -255,4 +275,4 @@ export const merge: CommandHandler = (state, args) => {
     .filter(Boolean)
     .join("\n");
   return success(next, output, explanation);
-};
+}

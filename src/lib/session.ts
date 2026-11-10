@@ -170,6 +170,7 @@ export function isValidSimState(x: unknown): x is SimState {
   for (const [id, c] of Object.entries(commits)) {
     if (!isObject(c) || c.id !== id || typeof c.message !== "string" || typeof c.time !== "number") return false;
     if (typeof c.branch !== "string" || !isFileMap(c.files) || !isStringArray(c.parents)) return false;
+    if (c.author !== undefined && typeof c.author !== "string") return false;
     if (c.parents.length > 2 || !c.parents.every((p) => has(commits, p))) return false;
   }
   if (!Object.values(repo.branches).every((id) => typeof id === "string" && has(commits, id))) return false;
@@ -179,6 +180,15 @@ export function isValidSimState(x: unknown): x is SimState {
     if (merge.kind !== undefined && merge.kind !== "merge" && merge.kind !== "revert" && merge.kind !== "stash") return false;
     if (typeof merge.branch !== "string" || typeof merge.message !== "string") return false;
     if (!isFileMap(merge.unmerged) || !isStringArray(merge.touched)) return false;
+  }
+  const refsOk = (x: unknown) => isObject(x) && Object.values(x).every((id) => typeof id === "string" && has(commits, id));
+  if (repo.tracking !== undefined && !refsOk(repo.tracking)) return false;
+  if (repo.upstream !== undefined && !isFileMap(repo.upstream)) return false;
+  if (repo.config !== undefined && !isFileMap(repo.config)) return false;
+  if (repo.remote !== undefined && repo.remote !== null) {
+    const r = repo.remote;
+    if (!isObject(r) || typeof r.name !== "string" || typeof r.url !== "string" || !refsOk(r.branches)) return false;
+    if (r.head !== null && typeof r.head !== "string") return false;
   }
   if (repo.stash !== undefined) {
     if (!Array.isArray(repo.stash)) return false;
@@ -192,12 +202,24 @@ export function isValidSimState(x: unknown): x is SimState {
 
 /**
  * পুরোনো সেভকে এখনকার আকারে আনে: `merge` না থাকলে null (v2.0-এর আগে ঐচ্ছিক ছিল),
- * merge-এ `kind` না থাকলে "merge", আর `stash` না থাকলে খালি তালিকা।
+ * merge-এ `kind` না থাকলে "merge", আর `stash`, remote, tracking, upstream, config না থাকলে খালি।
  */
 export function normalizeSimState(s: SimState): SimState {
   if (!s.repo) return s;
-  const merge = s.repo.merge ? { ...s.repo.merge, kind: s.repo.merge.kind ?? "merge" } : null;
-  return { ...s, repo: { ...s.repo, merge, stash: s.repo.stash ?? [] } };
+  const r = s.repo;
+  const merge = r.merge ? { ...r.merge, kind: r.merge.kind ?? "merge" } : null;
+  return {
+    ...s,
+    repo: {
+      ...r,
+      merge,
+      stash: r.stash ?? [],
+      remote: r.remote ?? null,
+      tracking: r.tracking ?? {},
+      upstream: r.upstream ?? {},
+      config: r.config ?? {},
+    },
+  };
 }
 
 export function isValidLines(x: unknown): x is TerminalLine[] {

@@ -84,6 +84,10 @@ export const msg = {
   /* ---------- branch ---------- */
   branchListEmpty: "এখনো কোনো commit নেই, তাই কোনো branch তালিকায় দেখা যাচ্ছে না। প্রথম commit-এর পর main দেখা যাবে।",
   branchList: (current: string) => `* চিহ্ন দেওয়া branch-এ (${current}) আপনি এখন আছেন।`,
+  branchListRemote:
+    "remotes/origin/... বা origin/... হলো remote-tracking branch: শেষবার fetch, pull বা push-এর সময় remote-এ কী দেখা গিয়েছিল। এগুলোতে সরাসরি commit হয় না; কাজ করতে `git switch <নাম>` দিলে একই নামের local branch তৈরি হয়।",
+  branchListNoRemote: "কোনো remote-tracking branch নেই। আগে `git fetch` বা `git push`।",
+  branchUpstreamMissing: (target: string) => `${target} নামে কোনো remote-tracking branch নেই। তালিকা দেখতে \`git branch -r\`, হালনাগাদ করতে \`git fetch\`।`,
   branchCreated: (name: string, id: string, current: string) =>
     `নতুন branch ${name} তৈরি হলো, এটা commit ${id}-কে দেখাচ্ছে। তবে আপনি এখনো ${current}-এ আছেন; যেতে চাইলে \`git switch ${name}\`।`,
   branchExists: (name: string) => `${name} নামে আগেই একটা branch আছে। অন্য নাম দিন।`,
@@ -98,6 +102,8 @@ export const msg = {
     `${name} নামে কোনো branch নেই। তালিকা দেখতে \`git branch\`, নতুন বানিয়ে যেতে \`git switch -c ${name}\`।`,
   checkoutIsFile: (name: string) =>
     `${name} একটা ফাইল, branch নয়। ফাইলকে আগের অবস্থায় ফেরানোর এই ব্যবহার এখনো সিমুলেটরে নেই।`,
+  switchFromRemote: (name: string, remote: string) =>
+    `${name} নামে local branch ছিল না, কিন্তু ${remote}/${name} আছে। তাই Git একই নামের নতুন branch বানিয়ে সেখানে গেল, আর upstream ঠিক করল ${remote}/${name}।`,
   switchAlready: (name: string) => `আপনি আগে থেকেই ${name} branch-এ আছেন, কিছু বদলায়নি।`,
   switchDone: (name: string, id: string | null) =>
     id
@@ -147,6 +153,12 @@ export const msg = {
       : kind === "merge"
         ? "merge চলছে, সব conflict মেটানো হয়েছে। এখন `git commit` দিলে merge commit তৈরি হবে।"
         : "revert চলছে, সব conflict মেটানো হয়েছে। এখন `git revert --continue` দিলে revert commit তৈরি হবে।",
+  statusUpstream: (name: string, ahead: number, behind: number) =>
+    ahead && behind
+      ? `${name}-এর সাথে দুই দিকেই নতুন commit আছে (আপনার ${bn(ahead)}টা, remote-এর ${bn(behind)}টা)। মেলাতে \`git pull\`, তারপর \`git push\`।`
+      : ahead
+        ? `আপনার ${bn(ahead)}টা commit এখনো ${name}-এ পাঠানো হয়নি; পাঠাতে \`git push\`।`
+        : `${name}-এ ${bn(behind)}টা নতুন commit আছে যা আপনার branch-এ নেই; আনতে \`git pull\`।`,
   statusStashConflict: (unmerged: number) =>
     `stash ফেরাতে গিয়ে ${bn(unmerged)}টা ফাইলে conflict হয়েছে ("Unmerged paths")। ফাইল ঠিক করে \`git add <file>\` দিন। অন্য বদলগুলো staged আছে।`,
   commitUnmerged: (paths: readonly string[]) =>
@@ -301,6 +313,78 @@ export const msg = {
   stashConflict: (paths: readonly string[], i: number, pop: boolean) =>
     `stash@{${bn(i)}}-এর বদল ${list(paths)}-এ এখনকার লেখার সাথে একই জায়গায় পড়েছে (conflict)। ফাইলে চিহ্ন বসেছে: <<<<<<< Updated upstream-এর নিচে এখনকার লেখা, ======= এর পরে stash-এর লেখা। ঠিক করে \`git add ${paths[0]}\` দিন। অন্য বদলগুলো staged হয়ে আছে।${pop ? " conflict হয়েছে বলে stash মুছে যায়নি; কাজ শেষে \`git stash drop\`।" : ""}`,
 
+  /* ---------- remote ---------- */
+  remoteNone:
+    "এখনো কোনো remote নেই। GitHub-এ রাখা রিপোর মতো একটা যোগ করতে `git remote add origin https://github.com/you/project.git`, অথবা শুরু থেকে `git clone <url>`।",
+  remoteList: (name: string) => `এই রিপোর remote: ${name}। ঠিকানা দেখতে \`git remote -v\`।`,
+  remoteVerbose: (name: string) => `${name} থেকে fetch/pull হয়, আর ${name}-এ push হয়। দুটো একই ঠিকানা।`,
+  remoteAddUsage: "এভাবে লিখুন: `git remote add origin https://github.com/you/project.git`",
+  remoteAdded: (name: string) =>
+    `remote ${name} যোগ হলো। এটা এখনো খালি, যেমন GitHub-এ সদ্য বানানো রিপো। প্রথমবার পাঠাতে \`git push -u ${name} main\`।`,
+  remoteExists: (name: string) => `${name} নামে remote আগেই আছে। ঠিকানা দেখতে \`git remote -v\`।`,
+  remoteOnlyOne: (name: string) => `সিমুলেটরে একটাই remote রাখা যায়, আর ${name} আগেই আছে।`,
+  remoteRemoved: (name: string) => `remote ${name} সরানো হলো, তার remote-tracking branch-গুলোও (${name}/...)। নিজের commit সব আছে।`,
+  remoteUnknown: (name: string) => `${name} নামে কোনো remote নেই। তালিকা দেখতে \`git remote -v\`।`,
+
+  /* ---------- push ---------- */
+  pushNoUpstream: (branch: string, remote: string) =>
+    `${branch}-এর এখনো কোনো upstream নেই, তাই Git জানে না কোথায় পাঠাবে। প্রথমবার \`git push -u ${remote} ${branch}\` দিন; এরপর শুধু \`git push\` দিলেই চলবে।`,
+  pushNoBranch: (branch: string) => `${branch} নামে কোনো local branch নেই (বা তাতে এখনো commit নেই), তাই পাঠানোর কিছু নেই।`,
+  pushUpToDate: (branch: string) => `remote-এ ${branch} আগে থেকেই আপনার মতো, নতুন কিছু পাঠানোর নেই।`,
+  pushNewBranch: (branch: string, remote: string) => `${branch} প্রথমবার ${remote}-এ পাঠানো হলো, ওখানে নতুন branch তৈরি হলো।`,
+  pushUpdated: (branch: string, remote: string) => `আপনার নতুন commit-গুলো ${remote}/${branch}-এ পৌঁছাল। এখন অন্যরা pull করলে পাবে।`,
+  pushForced: (branch: string, remote: string) =>
+    `সাবধান: জোর করে (--force) পাঠানো হলো। ${remote}/${branch}-এ যে commit আপনার কাছে ছিল না, সেগুলো remote থেকে মুছে গেল। দলের সাথে কাজ করলে এটা প্রায় কখনো করবেন না।`,
+  pushRejected: (branch: string, fetchFirst: boolean) =>
+    fetchFirst
+      ? `push আটকে গেল: অন্য কেউ ${branch}-এ নতুন commit পাঠিয়েছে, যা আপনার কাছে নেই। আগে \`git pull\` দিয়ে সেগুলো এনে নিজের কাজের সাথে মেলান, তারপর আবার push।`
+      : `push আটকে গেল: remote-এর ${branch}-এ এমন commit আছে যা আপনার branch-এ নেই (আপনি fetch করেছেন, কিন্তু মেলাননি)। আগে \`git pull\`, তারপর আবার push।`,
+  pushTracking: (branch: string, remote: string) =>
+    `${branch}-এর upstream এখন ${remote}/${branch}। এরপর শুধু \`git push\` আর \`git pull\` দিলেই চলবে, আর \`git status\` জানাবে আপনি কতটা এগিয়ে বা পিছিয়ে।`,
+
+  /* ---------- fetch / pull ---------- */
+  fetchDone: (branches: readonly string[], remote: string) =>
+    `${remote} থেকে নতুন খবর এলো: ${list(branches.map((b) => `${remote}/${b}`))} হালনাগাদ হলো। আপনার নিজের branch আর ফাইল বদলায়নি; মেলাতে \`git merge ${remote}/${branches[0]}\` বা \`git pull\`।`,
+  fetchNothing: "remote-এ নতুন কিছু নেই।",
+  pullFetched: (ref: string) => `pull = fetch + merge: আগে ${ref}-এর নতুন commit আনা হলো, তারপর আপনার branch-এ মেলানো হলো।`,
+  pullUpToDate: (ref: string) => `${ref}-এর সব commit আগে থেকেই আপনার branch-এ আছে, মেলানোর কিছু নেই।`,
+  pullNoTracking: (branch: string, remote: string) =>
+    `${branch}-এর কোনো upstream নেই, তাই Git জানে না কোথা থেকে আনবে। লিখুন \`git pull ${remote} <branch>\`, অথবা আগে \`git push -u ${remote} ${branch}\`।`,
+  pullNoRemoteBranch: (branch: string, remote: string) => `${remote}-এ ${branch} নামে কোনো branch নেই।`,
+  pullDivergent:
+    "দুই দিকেই নতুন commit আছে (divergent), আর আসল Git জানতে চায় কীভাবে মেলাবে। সবচেয়ে সহজ: একবার `git config pull.rebase false` দিন (merge দিয়ে মেলাবে), তারপর আবার `git pull`। অথবা এবারের জন্য `git pull --no-rebase`। (fetch কিন্তু হয়ে গেছে।)",
+  pullNotFastForward: "দুই দিকেই নতুন commit আছে, তাই শুধু সামনে এগোনো (fast-forward) সম্ভব নয়। merge করতে `git pull --no-rebase`।",
+  pullRebaseUnsupported: "rebase এখনো সিমুলেটরে নেই। merge দিয়ে মেলাতে `git pull --no-rebase`, বা `git config pull.rebase false`।",
+
+  /* ---------- clone ---------- */
+  cloneUsage: "কোন রিপো clone করবেন তার ঠিকানা দিন, যেমন `git clone https://github.com/msilabs/demo.git`।",
+  cloneInsideRepo: "এখানে আগেই একটা রিপো আছে। clone অনুশীলন করতে আগে ওপরের \"নতুন করে শুরু\" বোতাম চাপুন।",
+  cloneNotEmpty: "ফোল্ডারে আগে থেকেই ফাইল আছে। সিমুলেটরে ফোল্ডার একটাই, তাই clone করতে আগে \"নতুন করে শুরু\" চাপুন।",
+  cloneDone: (folder: string) =>
+    `remote-এর পুরো ইতিহাস নামানো হলো: main branch, ফাইলগুলো, আর origin নামে remote (upstream: origin/main)। গ্রাফে origin/feature/about-ও দেখুন; ওই branch-এ কাজ করতে \`git switch feature/about\`। (আসল Git ${folder} নামে নতুন ফোল্ডার বানাত, তারপর \`cd ${folder}\` লাগত; সিমুলেটরে ফোল্ডার একটাই।)`,
+
+  /* ---------- config ---------- */
+  configUsage: "এভাবে লিখুন: `git config --global user.name \"আপনার নাম\"` বা `git config pull.rebase false`।",
+  configUnknown: (key: string) => `সিমুলেটর শুধু user.name, user.email, pull.rebase আর pull.ff চেনে; "${key}" এখনো নেই।`,
+  configUnset: (key: string) => `${key} এখনো ঠিক করা হয়নি।`,
+  configShown: (key: string) => `${key}-এর এখনকার মান।`,
+  configBadValue: (key: string) => `${key}-এর মান হিসেবে true বা false দিন${key === "pull.ff" ? " (বা only)" : ""}।`,
+  configSet: (key: string, value: string, global: boolean) =>
+    (key.startsWith("user.")
+      ? `${key} = ${value}। এখন থেকে নতুন commit-এ লেখক হিসেবে এটা বসবে (\`git log\`-এ দেখুন)।`
+      : key === "pull.rebase" && value === "false"
+        ? "pull.rebase = false: এখন থেকে দুই দিকে নতুন commit থাকলে git pull merge দিয়ে মেলাবে।"
+        : `${key} = ${value} ঠিক হলো।`) + (global ? " (আসল Git-এ --global মানে এই কম্পিউটারের সব রিপোতে; সিমুলেটরে রিপো একটাই।)" : ""),
+  configList: "ঠিক করা সেটিংগুলো।",
+  configEmpty: "এখনো কোনো সেটিং ঠিক করা হয়নি। যেমন `git config --global user.name \"আপনার নাম\"`।",
+
+  /* ---------- teammate (সহায়ক) ---------- */
+  teammateUsage: 'এভাবে লিখুন: `teammate notes.txt "নতুন লেখা"` (অন্য branch-এ: `teammate -b feature notes.txt "লেখা"`)।',
+  teammateNoRemote: "teammate remote-এ commit পাঠায়, কিন্তু এখনো remote নেই। আগে `git remote add origin <url>` আর `git push -u origin main`, অথবা `git clone <url>`।",
+  teammateEmptyRemote: "remote-এ এখনো কোনো commit নেই। আগে `git push -u origin main` দিন।",
+  teammatePushed: (remote: string, branch: string) =>
+    `কল্পিত এক সহকর্মী ${remote}/${branch}-এ একটা commit push করল (এটা সিমুলেটরের সুবিধা)। আপনার কাছে এখনো আসেনি: গ্রাফে নেই, \`git status\`-ও জানে না। দেখতে \`git fetch\`, আনতে \`git pull\`।`,
+
   /* ---------- rm (সহায়ক) ---------- */
   rmMissingArg: "কোন ফাইল মুছবেন তার নাম দিন, যেমন `rm notes.txt`।",
   rmMissing: (name: string) => `${name} নামে কোনো ফাইল নেই।`,
@@ -372,6 +456,13 @@ export const HELP_ENTRIES: ReadonlyArray<readonly [string, string]> = [
   ["git revert <commit>", "commit-এর বদল উল্টে নতুন commit বানায়"],
   ["git stash [-m <msg>]", "commit না করা বদল সরিয়ে রাখে"],
   ["git stash list|pop|apply|drop", "সরিয়ে রাখা বদল দেখায় / ফেরায় / মোছে"],
+  ["git clone <url>", "remote রিপো নামিয়ে আনে (সিমুলেটরে একটা নমুনা প্রজেক্ট)"],
+  ["git remote [-v] | git remote add <name> <url>", "remote দেখায় / যোগ করে"],
+  ["git push [-u] [<remote> <branch>]", "নিজের commit remote-এ পাঠায় (-u: upstream ঠিক করে)"],
+  ["git fetch", "remote-এর নতুন খবর আনে, নিজের কাজ বদলায় না"],
+  ["git pull [--no-rebase]", "fetch + merge: remote-এর নতুন commit নিজের branch-এ আনে"],
+  ["git branch -r | -a", "remote-tracking branch দেখায়"],
+  ['git config [--global] <key> "<value>"', "user.name, user.email, pull.rebase ঠিক করে"],
   ["git rm [--cached] <file>", "ফাইল মোছে আর মুছে ফেলাটা stage করে (--cached: ফাইল রেখে শুধু Git থেকে সরায়)"],
   ["touch <file>", "খালি নতুন ফাইল বানায়"],
   ['edit <file> "লেখা"', "ফাইলের লেখা বদলায় (না থাকলে বানায়)"],
@@ -380,6 +471,7 @@ export const HELP_ENTRIES: ReadonlyArray<readonly [string, string]> = [
   ["rm <file>", "ফোল্ডার থেকে ফাইল মোছে"],
   ['echo "লেখা" [>|>> <file>]', "লেখা দেখায় / ফাইলে লেখে (>> শেষে যোগ করে)"],
   ["pwd", "কোন ফোল্ডারে আছেন দেখায়"],
+  ['teammate [-b <branch>] <file> "লেখা"', "কল্পিত সহকর্মী remote-এ commit push করে (pull অনুশীলনের জন্য)"],
   ["help", "এই তালিকা দেখায়"],
   ["clear", "টার্মিনাল পরিষ্কার করে (ফাইল বা commit মোছে না)"],
 ];

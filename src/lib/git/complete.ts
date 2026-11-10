@@ -28,11 +28,15 @@ const OPTIONS: Readonly<Record<string, readonly string[]>> = {
   rm: ["--cached", "--force", "--recursive"],
   reset: ["--hard", "--mixed", "--soft"],
   revert: ["--abort", "--continue", "--no-edit", "--skip"],
+  push: ["--force", "--set-upstream"],
+  pull: ["--ff-only", "--no-rebase"],
+  config: ["--global", "--list"],
 };
 
 const STASH_SUBCOMMANDS = ["apply", "clear", "drop", "list", "pop", "push"];
 
 const branches = (repo: Repo) => Object.keys(repo.branches).sort();
+const remoteRefs = (repo: Repo) => (repo.remote ? Object.keys(repo.tracking).sort().map((b) => `${repo.remote!.name}/${b}`) : []);
 const tracked = (repo: Repo) => Object.keys(repo.index).sort();
 
 /** working directory-তে বদলানো, মোছা বা untracked ফাইল, আর conflict চলা ফাইল (`git add`-এর জন্য) */
@@ -55,6 +59,7 @@ function choices(state: SimState, words: readonly string[], current: string): st
 
   const [program, sub] = words;
   if (program === "echo") return [">", ">>"].includes(words[words.length - 1]) ? files : [];
+  if (program === "teammate") return files;
   if (program !== "git") return ["edit", "cat", "rm", "touch"].includes(program) ? files : [];
   if (words.length === 1) return Object.keys(GIT_COMMANDS).sort();
 
@@ -76,17 +81,31 @@ function choices(state: SimState, words: readonly string[], current: string): st
         ? stagedFiles(repo)
         : tracked(repo).filter((p) => get(state.workdir, p) !== repo.index[p]);
     case "switch":
-    case "checkout":
-      return rest.some((w) => ["-c", "-b", "--create"].includes(w)) ? [] : branches(repo);
+    case "checkout": {
+      if (rest.some((w) => ["-c", "-b", "--create"].includes(w))) return [];
+      // origin/<নাম> থেকে নতুন branch বানানো যায়, তাই সেই নামগুলোও
+      const fromRemote = Object.keys(repo.tracking).filter((b) => get(repo.branches, b) === undefined);
+      return [...new Set([...branches(repo), ...fromRemote])].sort();
+    }
     case "merge":
-      return branches(repo).filter((b) => b !== repo.head);
+      return [...branches(repo).filter((b) => b !== repo.head), ...remoteRefs(repo)];
+    case "push":
+    case "pull":
+    case "fetch":
+      if (!repo.remote) return [];
+      if (rest.filter((w) => !w.startsWith("-")).length === 0) return [repo.remote.name];
+      return sub === "push" ? branches(repo) : Object.keys(repo.remote.branches).sort();
+    case "remote":
+      return rest.length === 0 ? ["add", "remove"] : [];
+    case "config":
+      return rest.filter((w) => !w.startsWith("-")).length === 0 ? ["pull.rebase", "user.email", "user.name"] : [];
     case "branch":
       return rest.some((w) => ["-d", "-D", "-m", "-M", "--delete", "--move"].includes(w)) ? branches(repo) : [];
     case "reset":
-      return rest.includes("--") ? tracked(repo) : ["HEAD", ...branches(repo)];
+      return rest.includes("--") ? tracked(repo) : ["HEAD", ...branches(repo), ...remoteRefs(repo)];
     case "revert":
     case "show":
-      return ["HEAD", ...branches(repo)];
+      return ["HEAD", ...branches(repo), ...remoteRefs(repo)];
     case "stash":
       if (rest.length === 0) return STASH_SUBCOMMANDS;
       return ["pop", "apply", "drop"].includes(rest[0]) ? repo.stash.map((_, i) => `stash@{${i}}`) : [];

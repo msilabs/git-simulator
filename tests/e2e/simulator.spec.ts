@@ -180,3 +180,17 @@ test("a file can be edited from the file panel, which runs the matching edit com
   await run(page, "git add a.txt", "git commit");
   await expect(log(page)).toContainText("merge শেষ!");
 });
+
+test("clone, a teammate's push, fetch and pull", async ({ page }) => {
+  await run(page, "git clone https://github.com/msilabs/demo.git");
+  await expect(log(page)).toContainText("Cloning into 'demo'...");
+  const graph = page.locator("svg").filter({ hasText: "origin/main" });
+  await expect(graph).toBeVisible();
+  await run(page, 'teammate notes.txt "hello"', "git status");
+  await expect(log(page)).toContainText("Your branch is up to date with 'origin/main'.");
+  await run(page, "git fetch", "git status");
+  await expect(log(page)).toContainText("Your branch is behind 'origin/main' by 1 commit");
+  await run(page, "git pull");
+  await expect(log(page)).toContainText("Fast-forward");
+  await expect(page.getByRole("button", { name: /notes\.txt-এর লেখা দেখুন/ }).first()).toBeVisible();
+});

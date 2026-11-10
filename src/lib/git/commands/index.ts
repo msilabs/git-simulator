@@ -22,6 +22,13 @@ import { stash } from "./stash";
 import { show } from "./show";
 import { echo } from "./echo";
 import { pwd } from "./pwd";
+import { remote } from "./remote";
+import { push } from "./push";
+import { fetch } from "./fetch";
+import { pull } from "./pull";
+import { clone } from "./clone";
+import { config } from "./config";
+import { teammate } from "./teammate";
 import { touch } from "./touch";
 import { edit } from "./edit";
 import { ls } from "./ls";
@@ -53,6 +60,12 @@ export const GIT_COMMANDS: Readonly<Record<string, GitCommand>> = {
   revert: { run: revert },
   stash: { run: stash },
   show: { run: show },
+  remote: { run: remote },
+  push: { run: push },
+  fetch: { run: fetch },
+  pull: { run: pull },
+  clone: { run: clone, worksWithoutRepo: true },
+  config: { run: config },
 };
 
 /** সিমুলেটরের সহায়ক কমান্ড (Git নয়) */
@@ -66,4 +79,5 @@ export const SHELL_COMMANDS: Readonly<Record<string, CommandHandler>> = {
   clear,
   echo,
   pwd,
+  teammate,
 };

@@ -1,5 +1,5 @@
 import type { CommandHandler, ConflictKind, Repo, SimState } from "../types";
-import { allPaths, get, has, headCommit, headTree, success } from "../helpers";
+import { aheadBehind, allPaths, get, has, headCommit, headTree, success } from "../helpers";
 import { msg } from "../messages";
 
 export interface StatusEntry {
@@ -20,6 +20,8 @@ export interface StatusInfo {
   readonly operation: "merge" | "revert" | null;
   /** revert চললে কোন commit উল্টানো হচ্ছে */
   readonly reverting: string | null;
+  /** upstream থাকলে: তার নাম (origin/main), আর কতটা এগিয়ে/পিছিয়ে */
+  readonly upstream: { readonly name: string; readonly ahead: number; readonly behind: number } | null;
   /** conflict মেটানো বাকি এমন ফাইল */
   readonly unmerged: { readonly path: string; readonly kind: ConflictKind }[];
 }
@@ -64,8 +66,35 @@ export function getStatus(state: SimState, repo: Repo): StatusInfo {
     // stash ফেরানোর conflict-এ আসল Git কোনো চলমান কাজ দেখায় না, শুধু Unmerged paths
     operation: repo.merge && repo.merge.kind !== "stash" ? repo.merge.kind : null,
     reverting: repo.merge?.kind === "revert" ? repo.merge.theirs : null,
+    upstream: upstreamInfo(repo),
     unmerged,
   };
+}
+
+export function upstreamInfo(repo: Repo): StatusInfo["upstream"] {
+  const branch = get(repo.upstream, repo.head);
+  const local = get(repo.branches, repo.head);
+  if (!repo.remote || branch === undefined || local === undefined) return null;
+  const remoteId = get(repo.tracking, branch);
+  if (remoteId === undefined) return null;
+  return { name: `${repo.remote.name}/${branch}`, ...aheadBehind(repo, local, remoteId) };
+}
+
+/** "Your branch is ahead of 'origin/main' by 1 commit." ধরনের লাইন, আসল Git-এর মতো */
+export function upstreamLines(u: NonNullable<StatusInfo["upstream"]>): string[] {
+  const commits = (n: number) => `${n} commit${n === 1 ? "" : "s"}`;
+  if (u.ahead && u.behind) {
+    return [
+      `Your branch and '${u.name}' have diverged,`,
+      `and have ${u.ahead} and ${u.behind} different commits each, respectively.`,
+      '  (use "git pull" if you want to integrate the remote branch with yours)',
+    ];
+  }
+  if (u.ahead) return [`Your branch is ahead of '${u.name}' by ${commits(u.ahead)}.`, '  (use "git push" to publish your local commits)'];
+  if (u.behind) {
+    return [`Your branch is behind '${u.name}' by ${commits(u.behind)}, and can be fast-forwarded.`, '  (use "git pull" to update your local branch)'];
+  }
+  return [`Your branch is up to date with '${u.name}'.`];
 }
 
 const entryLine = (e: StatusEntry) => `\t${(e.kind + ":").padEnd(12)}${e.path}`;
@@ -77,6 +106,7 @@ const entryLine = (e: StatusEntry) => `\t${(e.kind + ":").padEnd(12)}${e.path}`;
  */
 export function formatStatus(info: StatusInfo, keepTrailingBlank = false): string {
   const out: string[] = [`On branch ${info.branch}`];
+  if (info.upstream) out.push(...upstreamLines(info.upstream), "");
   if (info.operation === "merge" && info.unmerged.length) {
     out.push(
       "You have unmerged paths.",
@@ -161,11 +191,14 @@ export const status: CommandHandler = (state) => {
   const repo = state.repo!;
   const info = getStatus(state, repo);
   const { staged, unstaged, untracked } = info;
-  if (info.operation) return success(state, formatStatus(info), msg.statusMerging(info.operation, info.unmerged.length));
-  if (info.unmerged.length) return success(state, formatStatus(info), msg.statusStashConflict(info.unmerged.length));
+  const u = info.upstream;
+  const remoteNote = u && (u.ahead || u.behind) ? msg.statusUpstream(u.name, u.ahead, u.behind) : "";
+  const withRemote = (text: string) => [text, remoteNote].filter(Boolean).join("\n");
+  if (info.operation) return success(state, formatStatus(info), withRemote(msg.statusMerging(info.operation, info.unmerged.length)));
+  if (info.unmerged.length) return success(state, formatStatus(info), withRemote(msg.statusStashConflict(info.unmerged.length)));
   const explanation =
     staged.length + unstaged.length + untracked.length === 0
       ? msg.statusClean(info.branch)
       : msg.statusSummary(info.branch, staged.length, unstaged.length, untracked.length);
-  return success(state, formatStatus(info), explanation);
+  return success(state, formatStatus(info), withRemote(explanation));
 };

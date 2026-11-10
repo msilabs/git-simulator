@@ -1,16 +1,50 @@
 import type { CommandHandler, Commit, SimState } from "../types";
-import { failure, get, has, headCommit, isAncestor, isValidBranchName, PROJECT_PATH, success } from "../helpers";
+import { failure, get, has, headCommit, isAncestor, isValidBranchName, PROJECT_PATH, success, trackingRef } from "../helpers";
 import { msg } from "../messages";
 
 type Result = ReturnType<CommandHandler>;
 
-function list(state: SimState): Result {
+/** remote-tracking branch-এর লাইন: "origin/HEAD -> origin/main", "origin/main" ... (`prefix` -a-তে "remotes/") */
+function remoteLines(state: SimState, prefix: string): string[] {
   const repo = state.repo!;
-  const names = Object.keys(repo.branches).sort();
+  if (!repo.remote) return [];
+  const r = repo.remote.name;
+  const lines = Object.keys(repo.tracking).map((b) => ({ key: b, text: `  ${prefix}${r}/${b}` }));
+  if (repo.remote.head && has(repo.tracking, repo.remote.head)) {
+    lines.push({ key: "HEAD", text: `  ${prefix}${r}/HEAD -> ${r}/${repo.remote.head}` });
+  }
+  return lines.sort((a, b) => (a.key < b.key ? -1 : 1)).map((l) => l.text);
+}
+
+function list(state: SimState, which: "local" | "remote" | "all"): Result {
+  const repo = state.repo!;
+  const names = which === "remote" ? [] : Object.keys(repo.branches).sort();
+  const local = names.map((b) => (b === repo.head ? `* ${b}` : `  ${b}`));
+  const remote = which === "local" ? [] : remoteLines(state, which === "all" ? "remotes/" : "");
+  const lines = [...local, ...remote];
   // প্রথম commit-এর আগে আসল Git-ও কিছু দেখায় না।
-  if (names.length === 0) return success(state, "", msg.branchListEmpty);
-  const output = names.map((b) => (b === repo.head ? `* ${b}` : `  ${b}`)).join("\n");
-  return success(state, output, msg.branchList(repo.head));
+  if (lines.length === 0) return success(state, "", which === "remote" ? msg.branchListNoRemote : msg.branchListEmpty);
+  return success(state, lines.join("\n"), which === "local" ? msg.branchList(repo.head) : msg.branchListRemote);
+}
+
+/** `git branch --set-upstream-to=origin/main [<branch>]` বা `-u origin/main [<branch>]` */
+function setUpstream(state: SimState, target: string, branchArg: string | undefined): Result {
+  const repo = state.repo!;
+  const branch = branchArg ?? repo.head;
+  if (!has(repo.branches, branch)) return failure(state, `fatal: branch '${branch}' does not exist`, msg.branchNotFound(branch));
+  if (!repo.remote || trackingRef(repo, target) === undefined) {
+    return failure(
+      state,
+      `fatal: the requested upstream branch '${target}' does not exist`,
+      msg.branchUpstreamMissing(target),
+    );
+  }
+  const remoteBranch = target.replace(/^remotes\//, "").slice(repo.remote.name.length + 1);
+  return success(
+    { ...state, repo: { ...repo, upstream: { ...repo.upstream, [branch]: remoteBranch } } },
+    `branch '${branch}' set up to track '${repo.remote.name}/${remoteBranch}'.`,
+    msg.pushTracking(branch, repo.remote.name),
+  );
 }
 
 function create(state: SimState, name: string): Result {
@@ -61,7 +95,9 @@ function remove(state: SimState, names: string[], force: boolean): Result {
     }
     const branches = { ...repo.branches };
     delete branches[name];
-    repo = { ...repo, branches };
+    const upstream = { ...repo.upstream };
+    delete upstream[name];
+    repo = { ...repo, branches, upstream };
     out.push(`Deleted branch ${name} (was ${id}).`);
     explain.push(merged ? msg.branchDeleted(name, id) : msg.branchForceDeleted(name, id));
   }
@@ -96,8 +132,12 @@ function rename(state: SimState, args: string[], force: boolean): Result {
   }
   const commits: Record<string, Commit> = {};
   for (const [id, c] of Object.entries(repo.commits)) commits[id] = c.branch === from ? { ...c, branch: to } : c;
+  const upstream: Record<string, string> = {};
+  for (const [name, up] of Object.entries(repo.upstream)) {
+    if (name !== to) upstream[name === from ? to : name] = up;
+  }
   return success(
-    { ...state, repo: { ...repo, branches, commits, head: repo.head === from ? to : repo.head } },
+    { ...state, repo: { ...repo, branches, commits, upstream, head: repo.head === from ? to : repo.head } },
     "",
     msg.branchRenamed(from, to),
   );
@@ -110,6 +150,10 @@ function rename(state: SimState, args: string[], force: boolean): Result {
  */
 export const branch: CommandHandler = (state, args) => {
   const [first, ...rest] = args;
+  if (args.length === 1 && (first === "-r" || first === "--remotes")) return list(state, "remote");
+  if (args.length === 1 && (first === "-a" || first === "--all")) return list(state, "all");
+  if (first?.startsWith("--set-upstream-to=")) return setUpstream(state, first.slice("--set-upstream-to=".length), rest[0]);
+  if ((first === "-u" || first === "--set-upstream-to") && rest[0]) return setUpstream(state, rest[0], rest[1]);
   if (first === "-d" || first === "--delete") return remove(state, rest, false);
   if (first === "-D") return remove(state, rest, true);
   if (first === "-m" || first === "--move") return rename(state, rest, false);
@@ -117,7 +161,7 @@ export const branch: CommandHandler = (state, args) => {
 
   const option = args.find((a) => a.startsWith("-"));
   if (option) return failure(state, `error: unsupported in simulator: ${option}`, msg.unsupportedOption(option));
-  if (args.length === 0) return list(state);
+  if (args.length === 0) return list(state, "local");
   if (args.length > 1) return failure(state, "fatal: too many arguments", msg.branchTooMany);
   return create(state, first);
 };

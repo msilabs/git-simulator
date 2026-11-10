@@ -5,6 +5,9 @@ All notable changes to this project are documented here. The format follows [Kee
 ## [Unreleased]
 
 ### Added
+- Remotes: `git clone`, `git remote`, `git push` (with `-u` and `--force`), `git fetch`, `git pull` (with Git 2.56's divergent-branch rule, `--no-rebase` and `--ff-only`), `git branch -r/-a/--set-upstream-to`, switching to a branch that only exists on the remote, `git merge origin/main`, and ahead/behind/diverged lines in `git status`. Remote-tracking branches appear in the graph and in `git log --all`. Checked against git 2.56 with a real bare repository: 100 of 102 commands match, the other two are documented simplifications.
+- `teammate`, a simulator helper that pushes an imaginary colleague's commit to the remote.
+- `git config` for `user.name`, `user.email` (used as the author of new commits), `pull.rebase` and `pull.ff`.
 - Edit working-directory files right in the file panel. Saving runs the equivalent `edit` command in the terminal. `edit` now also understands `\\` for a literal backslash.
 - A conflicting `git stash pop` / `apply` now writes conflict markers like real Git, keeps the cleanly merged changes staged and keeps the stash entry.
 - `git restore --staged <file>` settles a conflicted file with our version (merge, revert or stash), like real Git.
@@ -19,6 +22,7 @@ All notable changes to this project are documented here. The format follows [Kee
 - `git rm <file>` and `git rm --cached <file>`, with `-f`, `-r .` and real Git's safety checks. `git rm` also resolves a conflict by deleting the file.
 
 ### Fixed
+- `git log` decorations are now ordered like real Git (`HEAD -> main` first, then the other refs in reverse order).
 - `git add .` now resolves a conflicted file that was deleted to settle the conflict.
 - `git status` output now matches real Git line for line: no blank line right after "On branch", no "unstage" hints during a merge, and no closing hint once all merge conflicts are fixed.
 - `git commit` with unresolved conflicts lists the files with `U`, like real Git.

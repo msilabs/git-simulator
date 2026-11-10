@@ -35,7 +35,7 @@ describe("Tab completion", () => {
     expect(complete(EMPTY_STATE, "ed")?.text).toBe("edit ");
     expect(complete(REPO, "git sw")?.text).toBe("git switch ");
     expect(complete(REPO, "git st")?.candidates).toEqual(["stash", "status"]);
-    expect(complete(REPO, "git re")?.candidates).toEqual(["reset", "restore", "revert"]);
+    expect(complete(REPO, "git re")?.candidates).toEqual(["remote", "reset", "restore", "revert"]);
   });
 
   it("suggests the right kind of name for each command", () => {

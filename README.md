@@ -37,9 +37,16 @@ No real Git runs here. A small, pure TypeScript model of Git lives in `src/lib/g
 | `git revert <commit>` | Add a new commit that undoes an earlier one; `--continue`, `--abort`, `--skip` after a conflict |
 | `git stash` / `git stash -m "msg"` | Put uncommitted changes to tracked files aside and clean the folder |
 | `git stash list` / `pop` / `apply` / `drop` / `clear` | List, bring back, or delete stashed changes (`stash@{n}` picks an entry) |
+| `git clone <url>` | Get a copy of a remote repository (always a small demo project) |
+| `git remote [-v]` / `git remote add <name> <url>` / `remove` | Show, add or remove the remote |
+| `git push [-u] [--force] [<remote> [<branch>]]` | Send your commits to the remote; `-u` sets the upstream |
+| `git fetch [<remote>]` | Download what is new on the remote into `origin/...` without touching your branch |
+| `git pull [--no-rebase \| --ff-only] [<remote> [<branch>]]` | `fetch` + `merge`. Like Git 2.56, divergent branches need `git config pull.rebase false` or `--no-rebase` first |
+| `git branch -r` / `-a` / `--set-upstream-to=<remote>/<branch>` | List remote-tracking branches / set a branch's upstream |
+| `git config [--global] user.name\|user.email\|pull.rebase\|pull.ff [<value>]` | Settings; `user.name`/`user.email` become the author of new commits |
 | `git rm <file>` / `git rm --cached <file>` | Delete a tracked file and stage the deletion / stop tracking it but keep the file (`-f` to force, `-r .` for everything) |
 
-Simulator-only helpers: `touch <file>`, `edit <file> "text"` (use `\n` for new lines), `echo "text" > <file>` / `>> <file>` (overwrite / append a line), `rm <file>`, `ls`, `cat <file>`, `pwd`, `help`, `clear`.
+Simulator-only helpers: `teammate [-b <branch>] <file> "text"` (an imaginary colleague pushes a commit to the remote, so you can practise fetch, pull and rejected pushes), `touch <file>`, `edit <file> "text"` (use `\n` for new lines), `echo "text" > <file>` / `>> <file>` (overwrite / append a line), `rm <file>`, `ls`, `cat <file>`, `pwd`, `help`, `clear`.
 
 In the file panel, tap a working-directory file to see it, then **Edit** to change it in place. Saving runs the matching `edit <file> "..."` command in the terminal, so undo and reloads keep working and you can see the command it stands for. This makes resolving merge conflicts much easier.
 
@@ -70,6 +77,8 @@ Other Git commands are recognised as "not in the simulator yet".
 - There is no detached HEAD, and `git checkout <file>` is not supported.
 - Revisions understand `HEAD`, branch names, commit ids (or a unique prefix of 4+ characters), `~n`, `^` and `^2`. There is no reflog, but commits left behind by `reset` or `--amend` can still be reached by id.
 - `git commit --amend` and `git revert` print no `Date` line. `git revert` takes one commit at a time and cannot revert merge commits (`-m` is not supported).
+- There is no network. A remote lives inside the simulator, there is only one, and `git clone` always brings the same demo project into the current folder (real Git creates a new folder). Pushes take no `<src>:<dst>` refspecs, tags or `--delete`, and there is no rebase (`git pull --rebase` is not supported).
+- Advice lines such as `hint: Disable this message with "git config set advice..."` are left out, and `git config --list` shows only the settings the simulator knows.
 - `git stash` keeps entries in a separate list, not as commits, so they do not appear in the graph. Untracked files are never stashed (`-u` is not supported). A conflicting `stash pop`/`apply` writes "Updated upstream" / "Stashed changes" markers like real Git and keeps the entry.
 
 Like real Git, `switch`/`checkout` carry uncommitted changes along when the file is identical on both branches. They refuse only when your changes would be overwritten.

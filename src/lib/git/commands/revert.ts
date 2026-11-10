@@ -1,5 +1,6 @@
 import type { CommandHandler, Commit, FileMap, MergeState, SimState } from "../types";
 import {
+  authorField,
   allPaths,
   failure,
   get,
@@ -134,7 +135,7 @@ export const revert: CommandHandler = (state, args) => {
 
   const time = state.clock + 1;
   const newId = makeCommitId(repo, `${time}:${head.id}:revert:${id}`);
-  const revertCommit: Commit = { id: newId, message, parents: [head.id], files: result, time, branch: repo.head };
+  const revertCommit: Commit = { id: newId, message, parents: [head.id], files: result, time, branch: repo.head, ...authorField(repo) };
   const changes = treeChanges(head.files, result);
   const next: SimState = {
     ...state,

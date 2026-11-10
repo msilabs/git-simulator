@@ -17,7 +17,8 @@ export function headTree(repo: Repo): FileMap {
 
 /**
  * revision-এর লেখাকে commit id-তে আনে; না পারলে null।
- * চলে: HEAD (বা @), branch-এর নাম, commit id (অন্তত ৪ অক্ষরের অনন্য শুরুটুকুও),
+ * চলে: HEAD (বা @), branch-এর নাম, remote-tracking branch (`origin/main`, `remotes/origin/main`),
+ * commit id (অন্তত ৪ অক্ষরের অনন্য শুরুটুকুও),
  * আর তার পরে ~, ~2, ^, ^2 (^2 মানে merge commit-এর দ্বিতীয় parent)।
  * branch থেকে পৌঁছানো যায় না এমন commit-ও id দিয়ে পাওয়া যায় (reset-এর পর ফেরার জন্য)।
  */
@@ -28,6 +29,7 @@ export function resolveRev(repo: Repo, rev: string): string | null {
   let id: string | undefined;
   if (name === "HEAD" || name === "@") id = get(repo.branches, repo.head);
   else if (has(repo.branches, name)) id = repo.branches[name];
+  else if (trackingRef(repo, name) !== undefined) id = trackingRef(repo, name);
   else if (/^[0-9a-f]{4,7}$/.test(name)) {
     const matches = Object.keys(repo.commits).filter((c) => c.startsWith(name));
     if (matches.length === 1) id = matches[0];
@@ -45,6 +47,25 @@ export function resolveRev(repo: Repo, rev: string): string | null {
   return id;
 }
 
+/** `git config user.name/email` দেওয়া থাকলে নতুন commit-এর লেখক; নাহলে কিছু না (ডিফল্ট শিক্ষার্থী) */
+export function authorField(repo: Repo): { author?: string } {
+  const name = get(repo.config, "user.name");
+  const email = get(repo.config, "user.email");
+  if (name === undefined && email === undefined) return {};
+  return { author: `${name ?? "Learner"} <${email ?? "learner@example.com"}>` };
+}
+
+/** "origin/main" বা "remotes/origin/main" → সেই remote-tracking ref-এর commit */
+export function trackingRef(repo: Repo, name: string): string | undefined {
+  if (!repo.remote) return undefined;
+  const prefix = `${repo.remote.name}/`;
+  const short = name.startsWith("remotes/") ? name.slice("remotes/".length) : name;
+  if (!short.startsWith(prefix)) return undefined;
+  const branch = short.slice(prefix.length);
+  if (branch === "HEAD") return repo.remote.head ? get(repo.tracking, repo.remote.head) : undefined;
+  return get(repo.tracking, branch);
+}
+
 /** একটা commit আর তার সব পূর্বপুরুষের id। */
 export function ancestors(repo: Repo, id: string): Set<string> {
   const seen = new Set<string>();
@@ -56,6 +77,16 @@ export function ancestors(repo: Repo, id: string): Set<string> {
     stack.push(...repo.commits[cur].parents);
   }
   return seen;
+}
+
+/** `local`-এ আছে কিন্তু `remote`-এ নেই (ahead), আর উল্টোটা (behind): এমন commit কয়টা */
+export function aheadBehind(repo: Repo, local: string, remote: string): { ahead: number; behind: number } {
+  const mine = ancestors(repo, local);
+  const theirs = ancestors(repo, remote);
+  return {
+    ahead: [...mine].filter((id) => !theirs.has(id)).length,
+    behind: [...theirs].filter((id) => !mine.has(id)).length,
+  };
 }
 
 /** a কি b-এর পূর্বপুরুষ (বা একই commit)? */

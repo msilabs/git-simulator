@@ -1,5 +1,6 @@
 import type { CommandHandler, Commit, FileMap } from "../types";
 import {
+  authorField,
   failure,
   get,
   has,
@@ -102,7 +103,7 @@ export const commit: CommandHandler = (state, args) => {
     const message = joined || parent.message;
     const time = state.clock + 1;
     const id = makeCommitId(repo, `${time}:amend:${parent.id}:${message}`);
-    const amended: Commit = { id, message, parents: parent.parents, files: index, time, branch: repo.head };
+    const amended: Commit = { id, message, parents: parent.parents, files: index, time, branch: repo.head, ...authorField(repo) };
     const before = parent.parents[0] ? repo.commits[parent.parents[0]].files : {};
     const changes = treeChanges(before, index);
     const autoStaged = Object.keys(repo.index).filter((p) => get(index, p) !== repo.index[p]).sort();
@@ -146,6 +147,7 @@ export const commit: CommandHandler = (state, args) => {
       files: index,
       time,
       branch: repo.head,
+      ...authorField(repo),
     };
     const changes = treeChanges(parent!.files, index);
     const firstLine = `[${repo.head} ${id}] ${message.split("\n")[0]}`;
@@ -198,6 +200,7 @@ export const commit: CommandHandler = (state, args) => {
     files: index,
     time,
     branch: repo.head,
+    ...authorField(repo),
   };
 
   const changes = treeChanges(parent?.files ?? {}, index);

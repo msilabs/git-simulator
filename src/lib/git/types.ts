@@ -24,6 +24,22 @@ export interface Commit {
    * আসল Git এই তথ্য রাখে না; এটা শুধু গ্রাফে লেন ঠিক করার জন্য।
    */
   readonly branch: string;
+  /** "নাম <email>"; না থাকলে ডিফল্ট শিক্ষার্থী (পুরোনো সেভে এটা নেই) */
+  readonly author?: string;
+}
+
+/**
+ * নকল remote রিপোজিটরি (যেমন GitHub-এ রাখা `origin`)।
+ * সরলীকরণ: একটাই remote; তার commit-গুলো একই `commits`-এ থাকে (আসল Git-এ আলাদা জায়গায়),
+ * তবে কোনটা আমরা "জানি" সেটা ঠিক হয় remote-tracking ref (`tracking`) দিয়ে, যা শুধু fetch/push/pull-এ বদলায়।
+ */
+export interface Remote {
+  readonly name: string;
+  readonly url: string;
+  /** remote-এ আসলে কোন branch কোন commit-এ (অন্য কেউ push করলে বদলায়) */
+  readonly branches: Readonly<Record<string, string>>;
+  /** clone করলে remote-এর ডিফল্ট branch (origin/HEAD); নাহলে null */
+  readonly head: string | null;
 }
 
 /** conflict-এর ধরন, আসল `git status`-এর লেবেল অনুযায়ী */
@@ -83,6 +99,14 @@ export interface Repo {
   readonly merge: MergeState | null;
   /** `git stash`-এর তালিকা, সবচেয়ে নতুনটা আগে (stash@{0}) */
   readonly stash: readonly StashEntry[];
+  /** remote না থাকলে null */
+  readonly remote: Remote | null;
+  /** remote-tracking ref: remote-এর branch-এর নাম → শেষবার fetch/push-এ দেখা commit (`origin/<নাম>`) */
+  readonly tracking: Readonly<Record<string, string>>;
+  /** local branch → তার upstream (remote-এর branch-এর নাম) */
+  readonly upstream: Readonly<Record<string, string>>;
+  /** `git config`: সিমুলেটর শুধু user.name, user.email আর pull.rebase চেনে */
+  readonly config: Readonly<Record<string, string>>;
 }
 
 export interface SimState {

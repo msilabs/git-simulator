@@ -13,7 +13,7 @@ describe("command dispatch", () => {
   });
 
   it("explains unsupported git commands", () => {
-    for (const cmd of ["git push", "git rebase main", "git cherry-pick main"]) {
+    for (const cmd of ["git rebase main", "git cherry-pick main", "git bisect start"]) {
       const r = runCommand(state(["git init"]), cmd);
       expect(r.ok).toBe(false);
       expect(r.explanation).toBe("এই কমান্ড এখনো সিমুলেটরে নেই। `help` লিখে দেখুন কী কী আছে।");

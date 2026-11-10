@@ -160,9 +160,10 @@ export function CommitGraph({ repo }: { repo: Repo | null }) {
                       width={w}
                       height={LABEL_H}
                       rx={6}
-                      fill={l.color}
-                      stroke={l.isHead ? "#FFB020" : "none"}
-                      strokeWidth={l.isHead ? 2 : 0}
+                      fill={l.remote ? "#14213D" : l.color}
+                      stroke={l.isHead ? "#FFB020" : l.remote ? l.color : "none"}
+                      strokeWidth={l.isHead || l.remote ? 2 : 0}
+                      strokeDasharray={l.remote ? "4 3" : undefined}
                     />
                     <text
                       x={w / 2}
@@ -170,7 +171,7 @@ export function CommitGraph({ repo }: { repo: Repo | null }) {
                       textAnchor="middle"
                       fontSize={12}
                       fontWeight={600}
-                      fill={DARK_TEXT_ON.has(l.color) ? "#14213D" : "#FFFFFF"}
+                      fill={l.remote ? l.color : DARK_TEXT_ON.has(l.color) ? "#14213D" : "#FFFFFF"}
                       className="font-mono"
                     >
                       {name}

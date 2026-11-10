@@ -12,7 +12,7 @@ export const init: CommandHandler = (state) => {
     return success(state, `Reinitialized existing Git repository in ${PROJECT_PATH}/.git/`, msg.reinit);
   }
   return success(
-    { ...state, repo: { commits: {}, branches: {}, head: "main", index: {}, merge: null, stash: [] } },
+    { ...state, repo: { commits: {}, branches: {}, head: "main", index: {}, merge: null, stash: [], remote: null, tracking: {}, upstream: {}, config: {} } },
     `Initialized empty Git repository in ${PROJECT_PATH}/.git/`,
     msg.init,
   );

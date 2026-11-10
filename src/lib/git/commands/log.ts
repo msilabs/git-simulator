@@ -1,21 +1,38 @@
 import type { CommandHandler, Commit, Repo } from "../types";
-import { ancestors, failure, headCommit, success } from "../helpers";
+import { ancestors, failure, get, headCommit, success } from "../helpers";
 import { msg } from "../messages";
 
-/** commit-এর পাশে "(HEAD -> main, feature)" লেবেল, আসল Git-এর মতো। */
+/**
+ * commit-এর পাশে "(HEAD -> main, origin/main, feature)" লেবেল, আসল Git-এর ক্রমে:
+ * আগে HEAD, তারপর বাকি ref পুরো নামের (refs/remotes/..., refs/heads/...) উল্টো বর্ণানুক্রমে।
+ */
 export function decoration(repo: Repo, id: string): string {
-  const names = Object.keys(repo.branches)
-    .filter((b) => repo.branches[b] === id)
-    .sort((a, b) => (a === repo.head ? -1 : b === repo.head ? 1 : a.localeCompare(b)))
-    .map((b) => (b === repo.head ? `HEAD -> ${b}` : b));
+  const refs: { full: string; short: string }[] = [];
+  for (const b of Object.keys(repo.branches)) {
+    if (repo.branches[b] === id && b !== repo.head) refs.push({ full: `refs/heads/${b}`, short: b });
+  }
+  if (repo.remote) {
+    const r = repo.remote.name;
+    for (const b of Object.keys(repo.tracking)) {
+      if (repo.tracking[b] === id) refs.push({ full: `refs/remotes/${r}/${b}`, short: `${r}/${b}` });
+    }
+    if (repo.remote.head && get(repo.tracking, repo.remote.head) === id) {
+      refs.push({ full: `refs/remotes/${r}/HEAD`, short: `${r}/HEAD` });
+    }
+  }
+  const names = refs.sort((a, b) => (a.full < b.full ? 1 : -1)).map((x) => x.short);
+  if (get(repo.branches, repo.head) === id) names.unshift(`HEAD -> ${repo.head}`);
   return names.length ? ` (${names.join(", ")})` : "";
 }
+
+/** commit-এর লেখক: commit-এ রাখা থাকলে সেটা, নাহলে ডিফল্ট শিক্ষার্থী */
+export const authorOf = (c: Commit) => c.author ?? "Learner <learner@example.com>";
 
 /** `git log`/`git show`-এর লম্বা রূপে একটা commit (Date লাইন ছাড়া) */
 export function formatCommit(repo: Repo, c: Commit): string {
   const lines = [`commit ${c.id}${decoration(repo, c.id)}`];
   if (c.parents.length > 1) lines.push(`Merge: ${c.parents.join(" ")}`);
-  lines.push("Author: Learner <learner@example.com>", "");
+  lines.push(`Author: ${authorOf(c)}`, "");
   lines.push(...c.message.split("\n").map((l) => (l ? `    ${l}` : "")));
   return lines.join("\n");
 }
@@ -154,7 +171,7 @@ export const log: CommandHandler = (state, args) => {
   }
 
   const head = headCommit(repo);
-  const tips = all ? Object.values(repo.branches) : head ? [head.id] : [];
+  const tips = all ? [...Object.values(repo.branches), ...Object.values(repo.tracking)] : head ? [head.id] : [];
   if (tips.length === 0) {
     return failure(
       state,

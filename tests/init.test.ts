@@ -6,7 +6,7 @@ describe("git init", () => {
     const r = runCommand(EMPTY_STATE, "git init");
     expect(r.ok).toBe(true);
     expect(r.output).toBe("Initialized empty Git repository in /home/learner/project/.git/");
-    expect(repoOf(r.state)).toEqual({ commits: {}, branches: {}, head: "main", index: {}, merge: null, stash: [] });
+    expect(repoOf(r.state)).toEqual({ commits: {}, branches: {}, head: "main", index: {}, merge: null, stash: [], remote: null, tracking: {}, upstream: {}, config: {} });
   });
 
   it("reinitializes without losing history", () => {
