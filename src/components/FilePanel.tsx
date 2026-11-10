@@ -127,12 +127,27 @@ export function FilePanel({ state }: { state: SimState }) {
       </div>
       {repo?.merge && (
         <div className="mb-3 rounded-xl border border-[#B42318]/30 bg-[#FEF3F2] px-3 py-2 text-sm text-[#7A271A]">
-          <strong>{unmergedCount ? ui.mergeBannerTitle : ui.mergeResolvedTitle}</strong>{" "}
+          <strong>
+            {!unmergedCount ? ui.mergeResolvedTitle : repo.merge.kind === "revert" ? ui.revertBannerTitle : ui.mergeBannerTitle}
+          </strong>{" "}
           <RichText
-            text={unmergedCount ? ui.mergeBanner(repo.merge.branch, unmergedCount) : ui.mergeResolved}
+            text={
+              repo.merge.kind === "revert"
+                ? unmergedCount
+                  ? ui.revertBanner(repo.merge.theirs, unmergedCount)
+                  : ui.revertResolved
+                : unmergedCount
+                  ? ui.mergeBanner(repo.merge.branch, unmergedCount)
+                  : ui.mergeResolved
+            }
             codeClassName="font-mono"
           />
         </div>
+      )}
+      {repo && repo.stash.length > 0 && (
+        <p className="mb-3 text-xs text-slate">
+          <RichText text={ui.stashNote(repo.stash.length)} codeClassName="font-mono" />
+        </p>
       )}
       <div className="grid grid-cols-1 gap-2 sm:grid-cols-3">
         <Column id="work" title={ui.workdirTitle} hint={ui.workdirHint} rows={workRows} empty={ui.workdirEmpty} />

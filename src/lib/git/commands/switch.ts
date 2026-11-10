@@ -87,8 +87,10 @@ function makeHandler(verb: Verb): CommandHandler {
         state,
         verb === "checkout" && unmerged.length
           ? `error: you need to resolve your current index first\n${unmerged.map((p) => `${p}: needs merge`).join("\n")}`
-          : 'fatal: cannot switch branch while merging\nConsider "git merge --quit" or "git worktree add".',
-        msg.switchMerging,
+          : repo.merge.kind === "merge"
+            ? 'fatal: cannot switch branch while merging\nConsider "git merge --quit" or "git worktree add".'
+            : 'fatal: cannot switch branch while reverting\nConsider "git revert --quit" or "git worktree add".',
+        msg.switchMerging(repo.merge.kind),
       );
     }
     if (args.length === 0) {

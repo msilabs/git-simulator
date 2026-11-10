@@ -46,7 +46,6 @@ describe("merge conflicts", () => {
         '  (use "git merge --abort" to abort the merge)',
         "",
         "Changes to be committed:",
-        '  (use "git restore --staged <file>..." to unstage)',
         "\tnew file:   login.html",
         "",
         "Unmerged paths:",

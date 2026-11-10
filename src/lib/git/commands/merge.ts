@@ -22,7 +22,7 @@ import { merge3 } from "../merge3";
 import { msg } from "../messages";
 import { commit } from "./commit";
 
-interface Conflict {
+export interface Conflict {
   readonly path: string;
   readonly kind: ConflictKind;
   /** conflict-এর পর working directory-তে যে লেখা থাকবে */
@@ -34,7 +34,7 @@ interface Conflict {
  * base থেকে শুধু এক দিক বদলালে সেই বদল; দুই দিক একইভাবে বদলালে সমস্যা নেই;
  * দুই দিক একই ফাইল বদলালে লাইন ধরে মেলানো (merge3), তাতেও না মিললে conflict।
  */
-function threeWay(base: FileMap, ours: FileMap, theirs: FileMap, theirsLabel: string) {
+export function threeWay(base: FileMap, ours: FileMap, theirs: FileMap, theirsLabel: string) {
   const result: Record<string, string> = {};
   const conflicts: Conflict[] = [];
   const autoMerged: string[] = [];
@@ -61,18 +61,36 @@ function threeWay(base: FileMap, ours: FileMap, theirs: FileMap, theirsLabel: st
   return { result: result as FileMap, conflicts, autoMerged };
 }
 
-/** `git merge --abort`: merge-এর আগের অবস্থায় ফেরা। */
-function abort(state: SimState): ReturnType<CommandHandler> {
+/** merge-এর আউটপুটের "Auto-merging"-এর পরের CONFLICT লাইনগুলো, আসল Git-এর লেখায়। */
+export function conflictLines(conflicts: readonly Conflict[], theirsLabel: string): string[] {
+  return conflicts.map((c) =>
+    c.kind === "deleted by us"
+      ? `CONFLICT (modify/delete): ${c.path} deleted in HEAD and modified in ${theirsLabel}.  Version ${theirsLabel} of ${c.path} left in tree.`
+      : c.kind === "deleted by them"
+        ? `CONFLICT (modify/delete): ${c.path} deleted in ${theirsLabel} and modified in HEAD.  Version HEAD of ${c.path} left in tree.`
+        : `CONFLICT (${c.kind === "both added" ? "add/add" : "content"}): Merge conflict in ${c.path}`,
+  );
+}
+
+/**
+ * থেমে থাকা merge বা revert বাতিল করে আগের অবস্থায় ফেরা (`git merge --abort`, `git revert --abort`)।
+ * আসল Git (`reset --merge`)-এর মতো: index পুরোটা HEAD-এ ফেরে; working directory-তে শুধু
+ * merge-এর ছোঁয়া ফাইলগুলো ফেরে, বাকি commit না করা বদল থেকে যায় (staged থাকলে unstaged হয়)।
+ */
+export function abortInProgress(state: SimState): SimState {
   const repo = state.repo!;
-  if (!repo.merge) {
-    return failure(state, "fatal: There is no merge to abort (MERGE_HEAD missing).", msg.mergeAbortNone);
-  }
   const head = headCommit(repo)?.files ?? {};
   let workdir = state.workdir;
-  // আসল Git (`reset --merge`)-এর মতো: index পুরোটা HEAD-এ ফেরে; working directory-তে শুধু
-  // merge-এর ছোঁয়া ফাইলগুলো ফেরে, বাকি commit না করা বদল থেকে যায় (staged থাকলে unstaged হয়)।
-  for (const p of repo.merge.touched) workdir = setFile(workdir, p, get(head, p));
-  return success({ ...state, workdir, repo: { ...repo, index: head, merge: null } }, "", msg.mergeAborted);
+  for (const p of repo.merge?.touched ?? []) workdir = setFile(workdir, p, get(head, p));
+  return { ...state, workdir, repo: { ...repo, index: head, merge: null } };
+}
+
+/** `git merge --abort` */
+function abort(state: SimState): ReturnType<CommandHandler> {
+  if (state.repo!.merge?.kind !== "merge") {
+    return failure(state, "fatal: There is no merge to abort (MERGE_HEAD missing).", msg.mergeAbortNone);
+  }
+  return success(abortInProgress(state), "", msg.mergeAborted);
 }
 
 /**
@@ -86,7 +104,9 @@ export const merge: CommandHandler = (state, args) => {
   const repo = state.repo!;
   if (args.length === 1 && args[0] === "--abort") return abort(state);
   if (args.length === 1 && args[0] === "--continue") {
-    if (!repo.merge) return failure(state, "fatal: There is no merge in progress (MERGE_HEAD missing).", msg.mergeContinueNone);
+    if (repo.merge?.kind !== "merge") {
+      return failure(state, "fatal: There is no merge in progress (MERGE_HEAD missing).", msg.mergeContinueNone);
+    }
     return commit(state, []);
   }
   const option = args.find((a) => a.startsWith("-"));
@@ -181,23 +201,14 @@ export const merge: CommandHandler = (state, args) => {
     let index = moved.index;
     for (const c of conflicts) index = setFile(index, c.path, get(ours.files, c.path));
     const mergeState: MergeState = {
+      kind: "merge",
       theirs: theirsId,
       branch: name,
       message,
       unmerged: Object.fromEntries(conflicts.map((c) => [c.path, c.kind])),
       touched: allPaths(ours.files, target).filter((p) => get(ours.files, p) !== get(target, p)),
     };
-    const lines = [
-      ...autoLines,
-      ...conflicts.map((c) =>
-        c.kind === "deleted by us"
-          ? `CONFLICT (modify/delete): ${c.path} deleted in HEAD and modified in ${name}.  Version ${name} of ${c.path} left in tree.`
-          : c.kind === "deleted by them"
-            ? `CONFLICT (modify/delete): ${c.path} deleted in ${name} and modified in HEAD.  Version HEAD of ${c.path} left in tree.`
-            : `CONFLICT (${c.kind === "both added" ? "add/add" : "content"}): Merge conflict in ${c.path}`,
-      ),
-      "Automatic merge failed; fix conflicts and then commit the result.",
-    ];
+    const lines = [...autoLines, ...conflictLines(conflicts, name), "Automatic merge failed; fix conflicts and then commit the result."];
     const explanation = [autoExplain.length ? msg.mergeAutoMerged(autoExplain) : "", msg.mergeConflict([...conflictPaths], name)]
       .filter(Boolean)
       .join("\n");

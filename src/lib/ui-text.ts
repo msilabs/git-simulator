@@ -61,6 +61,11 @@ export const ui = {
     `${branch} আনতে গিয়ে ${bn(count)}টা ফাইলে conflict। ফাইল ঠিক করে \`git add\`, তারপর \`git commit\`। বাতিল: \`git merge --abort\``,
   mergeResolvedTitle: "সব conflict মেটানো শেষ।",
   mergeResolved: "merge শেষ করতে `git commit` দিন।",
+  revertBannerTitle: "revert চলছে:",
+  revertBanner: (id: string, count: number) =>
+    `commit ${id} উল্টাতে গিয়ে ${bn(count)}টা ফাইলে conflict। ফাইল ঠিক করে \`git add\`, তারপর \`git revert --continue\`। বাতিল: \`git revert --abort\``,
+  revertResolved: "revert শেষ করতে `git revert --continue` দিন।",
+  stashNote: (count: number) => `stash-এ ${bn(count)}টা অবস্থা সরিয়ে রাখা আছে। দেখতে \`git stash list\`, ফেরাতে \`git stash pop\`।`,
 
   /* গ্রাফ */
   graphTitle: "Commit গ্রাফ",

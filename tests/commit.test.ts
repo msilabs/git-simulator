@@ -155,6 +155,51 @@ describe("git commit", () => {
     expect(head.files).toEqual({ f: "fixed again" });
   });
 
+  it("--amend replaces the last commit, keeping its parent", () => {
+    const base = state(["git init", 'edit a "a"', 'edit b "b"', "git add .", 'git commit -m "first"', 'edit a "a2"', 'git commit -am "second"']);
+    const oldId = headId(base);
+    const first = repoOf(base).commits[oldId].parents[0];
+    const r = exec(['git commit --amend -m "second fixed"'], base);
+    expect(r.ok).toBe(true);
+    const repo = repoOf(r.state);
+    const c = repo.commits[headId(r.state)];
+    expect(c.id).not.toBe(oldId);
+    expect(c.parents).toEqual([first]);
+    expect(c.message).toBe("second fixed");
+    expect(r.output).toBe(`[main ${c.id}] second fixed\n 1 file changed, 1 insertion(+), 1 deletion(-)`);
+    expect(exec(["git log --oneline"], r.state).output).not.toContain(oldId);
+    expect(r.explanation).toContain(`শেষ commit ${oldId}-এর জায়গায় নতুন commit ${c.id} বসল`);
+
+    const withFile = exec(['edit c "c"', "git add c", "git commit --amend --no-edit"], r.state);
+    expect(withFile.output).toMatch(/^\[main [0-9a-f]{7}\] second fixed\n 2 files changed, 2 insertions\(\+\), 1 deletion\(-\)\n create mode 100644 c$/);
+    const all = exec(['edit a "a9"', 'git commit -a --amend -m "x"'], withFile.state);
+    expect(repoOf(all.state).commits[headId(all.state)].files).toEqual({ a: "a9", b: "b", c: "c" });
+  });
+
+  it("--amend on the root commit, with nothing to amend, and during a merge", () => {
+    const root = exec(["git init", "touch a", "git add a", 'git commit -m "one"', 'git commit --amend -m "uno"']);
+    expect(root.output).toMatch(/^\[main [0-9a-f]{7}\] uno\n 1 file changed, 0 insertions\(\+\), 0 deletions\(-\)\n create mode 100644 a$/);
+    expect(repoOf(root.state).commits[headId(root.state)].parents).toEqual([]);
+    expect(exec(["git init", 'git commit --amend -m "x"']).output).toBe("fatal: You have nothing to amend.");
+    const merging = exec([
+      "git init",
+      'edit a "a"',
+      "git add .",
+      'git commit -m "base"',
+      "git switch -c f",
+      'edit a "F"',
+      'git commit -am "f"',
+      "git switch main",
+      'edit a "M"',
+      'git commit -am "m"',
+      "git merge f",
+      'edit a "R"',
+      "git add a",
+      'git commit --amend -m "x"',
+    ]);
+    expect(merging.output).toBe("fatal: You are in the middle of a merge -- cannot amend.");
+  });
+
   it("gives unique ids even for identical commits", () => {
     let s = state(["git init"]);
     const ids = new Set<string>();

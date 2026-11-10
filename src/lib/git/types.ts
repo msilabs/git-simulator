@@ -30,14 +30,17 @@ export interface Commit {
 export type ConflictKind = "both modified" | "both added" | "deleted by us" | "deleted by them";
 
 /**
- * conflict-এর কারণে থেমে থাকা merge (আসল Git-এ .git/MERGE_HEAD আর MERGE_MSG)।
+ * conflict-এর কারণে থেমে থাকা merge বা revert
+ * (আসল Git-এ .git/MERGE_HEAD বা REVERT_HEAD, আর MERGE_MSG)।
  * সরলীকরণ: আসল Git index-এ unmerged ফাইলের তিনটা "stage" (base/ours/theirs) রাখে;
  * আমরা index-এ ours রেখে আলাদা তালিকায় চিহ্ন দিই কোনগুলো এখনো মেটানো হয়নি।
  */
 export interface MergeState {
-  /** যে commit merge করা হচ্ছে (MERGE_HEAD) */
+  /** "merge": `git merge` থেমে আছে; "revert": `git revert` থেমে আছে */
+  readonly kind: "merge" | "revert";
+  /** merge-এ: যে commit merge করা হচ্ছে (MERGE_HEAD); revert-এ: যে commit উল্টানো হচ্ছে (REVERT_HEAD) */
   readonly theirs: string;
-  /** যে branch merge করা হচ্ছে */
+  /** merge-এ: যে branch merge করা হচ্ছে; revert-এ: উল্টানো commit-এর id */
   readonly branch: string;
   /** commit-এর ডিফল্ট মেসেজ (MERGE_MSG) */
   readonly message: string;
@@ -45,6 +48,23 @@ export interface MergeState {
   readonly unmerged: Readonly<Record<string, ConflictKind>>;
   /** merge যে ফাইলগুলো বদলেছে; `merge --abort` এগুলোকে HEAD-এ ফেরায় */
   readonly touched: readonly string[];
+}
+
+/**
+ * `git stash`-এ রাখা একটা অবস্থা।
+ * সরলীকরণ: আসল Git এগুলো বিশেষ commit হিসেবে রাখে (refs/stash); আমরা আলাদা তালিকায় রাখি,
+ * তাই গ্রাফে দেখা যায় না। untracked ফাইল stash-এ যায় না (আসল Git-এর ডিফল্টের মতো)।
+ */
+export interface StashEntry {
+  readonly id: string;
+  /** "WIP on main: abc1234 subject" বা "On main: নিজের মেসেজ" */
+  readonly message: string;
+  /** stash করার সময়ের HEAD commit */
+  readonly base: string;
+  /** stash করার সময়ের staging area */
+  readonly index: FileMap;
+  /** stash করার সময় tracked ফাইলগুলোর লেখা (index-এ আছে কিন্তু এখানে নেই মানে ফাইলটা মোছা ছিল) */
+  readonly workdir: FileMap;
 }
 
 export interface Repo {
@@ -55,8 +75,10 @@ export interface Repo {
   readonly head: string;
   /** staging area (index)। আসল Git-এর মতো এতে সব tracked ফাইল থাকে। */
   readonly index: FileMap;
-  /** merge conflict চলাকালীন থাকে; null মানে কোনো merge চলছে না। */
+  /** merge বা revert conflict-এ থেমে থাকলে থাকে; null মানে কিছু চলছে না। */
   readonly merge: MergeState | null;
+  /** `git stash`-এর তালিকা, সবচেয়ে নতুনটা আগে (stash@{0}) */
+  readonly stash: readonly StashEntry[];
 }
 
 export interface SimState {

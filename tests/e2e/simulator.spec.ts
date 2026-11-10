@@ -89,3 +89,26 @@ test("no horizontal scroll on a 320px screen", async ({ page }) => {
   const width = await page.evaluate(() => document.documentElement.scrollWidth);
   expect(width).toBeLessThanOrEqual(320);
 });
+
+test("revert conflict banner, stash note and reset", async ({ page }) => {
+  await run(
+    page,
+    "git init",
+    'edit a "a"',
+    "git add .",
+    'git commit -m "first"',
+    'edit a "a2"',
+    'git commit -am "second"',
+    'edit a "a3"',
+    'git commit -am "third"',
+    "git revert HEAD~1",
+  );
+  await expect(page.getByText("revert চলছে:")).toBeVisible();
+  await run(page, "git revert --abort", 'edit a "wip"', "git stash");
+  await expect(page.getByText("stash-এ ১টা অবস্থা সরিয়ে রাখা আছে।")).toBeVisible();
+  await run(page, "git stash pop");
+  await expect(page.getByText("stash-এ ১টা অবস্থা")).toHaveCount(0);
+  await run(page, "git reset --hard HEAD~1");
+  await expect(log(page)).toContainText("HEAD is now at");
+  await expect(page.locator("svg circle")).toHaveCount(2);
+});

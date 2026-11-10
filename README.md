@@ -18,6 +18,7 @@ No real Git runs here. A small, pure TypeScript model of Git lives in `src/lib/g
 | `git status` | Show the branch plus staged, modified and untracked files |
 | `git add <file>...` / `git add .` | Stage files |
 | `git commit -m "message"` | Create a commit from the staging area |
+| `git commit --amend [-m "message"]` | Replace the last commit with a new one (same parent, new snapshot or message) |
 | `git commit -a -m "message"` / `-am` | Stage every modified or deleted tracked file, then commit (untracked files are left out) |
 | `git log` / `git log --oneline` | Show history reachable from the current branch |
 | `git branch` / `git branch <name>` | List branches / create a branch at the current commit |
@@ -29,6 +30,11 @@ No real Git runs here. A small, pure TypeScript model of Git lives in `src/lib/g
 | `git restore <file>` / `git restore --staged <file>` | Discard working-tree changes / unstage (`.` for everything) |
 | `git branch -d` / `-D <name>` | Delete a merged branch / force-delete |
 | `git branch -m` / `-M [<old>] <new>` | Rename a branch |
+| `git reset [--soft \| --mixed \| --hard] [<commit>]` | Move the branch back: `--soft` keeps changes staged, `--mixed` (default) keeps them unstaged, `--hard` discards them |
+| `git reset <file>` | Unstage a file (like `git restore --staged`) |
+| `git revert <commit>` | Add a new commit that undoes an earlier one; `--continue`, `--abort`, `--skip` after a conflict |
+| `git stash` / `git stash -m "msg"` | Put uncommitted changes to tracked files aside and clean the folder |
+| `git stash list` / `pop` / `apply` / `drop` / `clear` | List, bring back, or delete stashed changes (`stash@{n}` picks an entry) |
 | `git rm <file>` / `git rm --cached <file>` | Delete a tracked file and stage the deletion / stop tracking it but keep the file (`-f` to force, `-r .` for everything) |
 
 Simulator-only helpers: `touch <file>`, `edit <file> "text"` (use `\n` for new lines), `rm <file>`, `ls`, `cat <file>`, `help`, `clear`.
@@ -56,6 +62,9 @@ Other Git commands are recognised as "not in the simulator yet".
 - `git commit` without `-m` asks for a message instead of opening an editor.
 - Line counts in `insertions(+)/deletions(-)` ignore whether a file ends with a newline.
 - There is no detached HEAD, and `git checkout <file>` is not supported.
+- Revisions understand `HEAD`, branch names, commit ids (or a unique prefix of 4+ characters), `~n`, `^` and `^2`. There is no reflog, but commits left behind by `reset` or `--amend` can still be reached by id.
+- `git commit --amend` and `git revert` print no `Date` line. `git revert` takes one commit at a time and cannot revert merge commits (`-m` is not supported).
+- `git stash` keeps entries in a separate list, not as commits, so they do not appear in the graph. Untracked files are never stashed (`-u` is not supported). If applying a stash would conflict, the simulator stops without changing anything; real Git writes conflict markers.
 
 Like real Git, `switch`/`checkout` carry uncommitted changes along when the file is identical on both branches. They refuse only when your changes would be overwritten.
 

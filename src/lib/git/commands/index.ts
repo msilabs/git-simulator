@@ -16,6 +16,9 @@ import { diff } from "./diff";
 import { restore } from "./restore";
 import { rm } from "./rm";
 import { gitRm } from "./gitRm";
+import { reset } from "./reset";
+import { revert } from "./revert";
+import { stash } from "./stash";
 import { touch } from "./touch";
 import { edit } from "./edit";
 import { ls } from "./ls";
@@ -43,6 +46,9 @@ export const GIT_COMMANDS: Readonly<Record<string, GitCommand>> = {
   diff: { run: diff },
   restore: { run: restore },
   rm: { run: gitRm },
+  reset: { run: reset },
+  revert: { run: revert },
+  stash: { run: stash },
 };
 
 /** সিমুলেটরের সহায়ক কমান্ড (Git নয়) */

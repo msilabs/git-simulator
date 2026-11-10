@@ -90,6 +90,34 @@ describe("storage", () => {
     }
   });
 
+  it("fills in stash and merge kind for saves made before they existed", () => {
+    const sim = runAll(["git init", 'edit a "a"', "git add .", 'git commit -m "a"']);
+    const { stash: _stash, ...oldRepo } = sim.repo!;
+    void _stash;
+    const raw = JSON.stringify({ v: 2, base: { ...sim, repo: oldRepo }, log: ["git stash list"], lines: [], history: [], step: 0 });
+    const r = parseSaved(raw);
+    if (r.status !== "ok") throw new Error("not ok");
+    expect(r.session.sim.repo!.stash).toEqual([]);
+
+    const conflicted = runAll(
+      ["git switch -c f", 'edit a "F"', 'git commit -am "f"', "git switch main", 'edit a "M"', 'git commit -am "m"', "git merge f"],
+      sim,
+    );
+    const { kind: _kind, ...oldMerge } = conflicted.repo!.merge!;
+    void _kind;
+    const raw2 = JSON.stringify({ v: 2, base: { ...conflicted, repo: { ...conflicted.repo, merge: oldMerge } }, log: [], lines: [], history: [], step: 0 });
+    const r2 = parseSaved(raw2);
+    if (r2.status !== "ok") throw new Error("not ok");
+    expect(r2.session.sim.repo!.merge!.kind).toBe("merge");
+  });
+
+  it("treats a stash pointing at a missing commit as corrupt", () => {
+    const sim = runAll(["git init", 'edit a "a"', "git add .", 'git commit -m "a"', 'edit a "b"', "git stash"]);
+    const repo = sim.repo!;
+    const bad = { ...sim, repo: { ...repo, stash: [{ ...repo.stash[0], base: "fffffff" }] } };
+    expect(parseSaved(JSON.stringify({ v: 2, base: bad, log: [], lines: [], history: [], step: 0 })).status).toBe("corrupt");
+  });
+
   it("fills in merge: null for saves made before it was required", () => {
     const sim = runAll(["git init", "touch a"]);
     const old = { ...sim, repo: { ...sim.repo!, merge: undefined } };

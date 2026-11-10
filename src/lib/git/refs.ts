@@ -2,7 +2,7 @@
  * commit, branch আর ইতিহাস নিয়ে কাজ: HEAD, পূর্বপুরুষ, merge base, commit id, নাম যাচাই।
  */
 import type { Commit, FileMap, Repo } from "./types";
-import { get } from "./own";
+import { get, has } from "./own";
 
 /** HEAD যে commit-কে দেখাচ্ছে (প্রথম commit-এর আগে null)। */
 export function headCommit(repo: Repo): Commit | null {
@@ -13,6 +13,36 @@ export function headCommit(repo: Repo): Commit | null {
 /** HEAD commit-এর ফাইলগুলো (commit না থাকলে খালি)। */
 export function headTree(repo: Repo): FileMap {
   return headCommit(repo)?.files ?? {};
+}
+
+/**
+ * revision-এর লেখাকে commit id-তে আনে; না পারলে null।
+ * চলে: HEAD (বা @), branch-এর নাম, commit id (অন্তত ৪ অক্ষরের অনন্য শুরুটুকুও),
+ * আর তার পরে ~, ~2, ^, ^2 (^2 মানে merge commit-এর দ্বিতীয় parent)।
+ * branch থেকে পৌঁছানো যায় না এমন commit-ও id দিয়ে পাওয়া যায় (reset-এর পর ফেরার জন্য)।
+ */
+export function resolveRev(repo: Repo, rev: string): string | null {
+  const m = /^([^~^]+)((?:[~^]\d*)*)$/.exec(rev);
+  if (!m) return null;
+  const [, name, suffix] = m;
+  let id: string | undefined;
+  if (name === "HEAD" || name === "@") id = get(repo.branches, repo.head);
+  else if (has(repo.branches, name)) id = repo.branches[name];
+  else if (/^[0-9a-f]{4,7}$/.test(name)) {
+    const matches = Object.keys(repo.commits).filter((c) => c.startsWith(name));
+    if (matches.length === 1) id = matches[0];
+  }
+  if (!id) return null;
+  for (const [, op, digits] of suffix.matchAll(/([~^])(\d*)/g)) {
+    const n = digits === "" ? 1 : Number(digits);
+    if (op === "~") {
+      for (let i = 0; i < n && id; i++) id = repo.commits[id].parents[0];
+    } else if (n > 0) {
+      id = repo.commits[id].parents[n - 1];
+    }
+    if (!id) return null;
+  }
+  return id;
 }
 
 /** একটা commit আর তার সব পূর্বপুরুষের id। */

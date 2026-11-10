@@ -166,16 +166,28 @@ export function isValidSimState(x: unknown): x is SimState {
   const merge = repo.merge;
   if (merge !== undefined && merge !== null) {
     if (!isObject(merge) || typeof merge.theirs !== "string" || !has(commits, merge.theirs)) return false;
+    if (merge.kind !== undefined && merge.kind !== "merge" && merge.kind !== "revert") return false;
     if (typeof merge.branch !== "string" || typeof merge.message !== "string") return false;
     if (!isFileMap(merge.unmerged) || !isStringArray(merge.touched)) return false;
+  }
+  if (repo.stash !== undefined) {
+    if (!Array.isArray(repo.stash)) return false;
+    for (const e of repo.stash) {
+      if (!isObject(e) || typeof e.id !== "string" || typeof e.message !== "string") return false;
+      if (typeof e.base !== "string" || !has(commits, e.base) || !isFileMap(e.index) || !isFileMap(e.workdir)) return false;
+    }
   }
   return true;
 }
 
-/** পুরোনো সেভে `merge` না থাকলে null বসায় (v2.0-এর আগে ঐচ্ছিক ছিল)। */
+/**
+ * পুরোনো সেভকে এখনকার আকারে আনে: `merge` না থাকলে null (v2.0-এর আগে ঐচ্ছিক ছিল),
+ * merge-এ `kind` না থাকলে "merge", আর `stash` না থাকলে খালি তালিকা।
+ */
 export function normalizeSimState(s: SimState): SimState {
-  if (!s.repo || s.repo.merge !== undefined) return s;
-  return { ...s, repo: { ...s.repo, merge: null } };
+  if (!s.repo) return s;
+  const merge = s.repo.merge ? { ...s.repo.merge, kind: s.repo.merge.kind ?? "merge" } : null;
+  return { ...s, repo: { ...s.repo, merge, stash: s.repo.stash ?? [] } };
 }
 
 export function isValidLines(x: unknown): x is TerminalLine[] {

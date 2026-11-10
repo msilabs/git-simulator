@@ -5,11 +5,17 @@ All notable changes to this project are documented here. The format follows [Kee
 ## [Unreleased]
 
 ### Added
+- `git reset` with `--soft`, `--mixed` and `--hard`, `git reset <file>`, and revisions like `HEAD~1`, `main^`, `HEAD^2` or a commit id. The explanation says how to get back to commits that were left behind.
+- `git revert <commit>`, including line-level merging, conflicts, `git revert --continue`, `--abort` and `--skip`.
+- `git stash`, `git stash -m`, `list`, `pop`, `apply`, `drop` and `clear`. The file panel shows how many entries are stashed.
+- `git commit --amend` (with `-m`, `--no-edit` or `-a`).
 - `git commit -a` / `--all`, including `-am "message"`. Short options can be combined like in real Git.
 - `git rm <file>` and `git rm --cached <file>`, with `-f`, `-r .` and real Git's safety checks. `git rm` also resolves a conflict by deleting the file.
 
 ### Fixed
 - `git add .` now resolves a conflicted file that was deleted to settle the conflict.
+- `git status` output now matches real Git line for line: no blank line right after "On branch", no "unstage" hints during a merge, and no closing hint once all merge conflicts are fixed.
+- `git commit` with unresolved conflicts lists the files with `U`, like real Git.
 - Undo after a reload restores the starter step that was saved, instead of dropping back one step.
 - Typing a name that exists on every JavaScript object (`toString`, `constructor`, `git constructor`, `git switch toString` and so on) no longer crashes the page. These names now work like any other file or branch name. `__proto__` is refused as a file or branch name.
 - The crash screen first offers a plain reload, which keeps saved progress. "Start over" is now the second option.
