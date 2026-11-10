@@ -36,6 +36,7 @@ export const ui = {
   terminal: "টার্মিনাল",
   inputLabel: "কমান্ড লিখুন",
   inputPlaceholder: "এখানে লিখুন…",
+  themeToggle: "আলো / অন্ধকার থিম বদলান",
   missionHeading: (n: number, total: number) => `মিশন ${bn(n)}/${bn(total)}:`,
   missionAll: "সব মিশন",
   missionHide: "লুকান",

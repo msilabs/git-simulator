@@ -195,3 +195,39 @@ test("clone, a teammate's push, fetch and pull", async ({ page }) => {
   await expect(log(page)).toContainText("Fast-forward");
   await expect(page.getByRole("button", { name: /notes\.txt-এর লেখা দেখুন/ }).first()).toBeVisible();
 });
+
+test("follows the system theme, and the toggle switches and remembers it", async ({ page }) => {
+  await page.emulateMedia({ colorScheme: "dark" });
+  await page.reload();
+  const html = page.locator("html");
+  await expect(html).toHaveAttribute("data-theme", "dark");
+  await page.getByRole("button", { name: "আলো / অন্ধকার থিম বদলান" }).click();
+  await expect(html).toHaveAttribute("data-theme", "light");
+  await page.reload();
+  await expect(html).toHaveAttribute("data-theme", "light");
+  const bg = await page.evaluate(() => getComputedStyle(document.body).backgroundColor);
+  expect(bg).toBe("rgb(245, 247, 251)");
+});
+
+test("a tall file panel scrolls instead of pushing the graph out of the page", async ({ page }, info) => {
+  test.skip(info.project.name === "phone", "on phones the page simply scrolls");
+  await run(
+    page,
+    "git init",
+    'edit index.html "<h1>hi</h1>"',
+    "git add .",
+    'git commit -m "first"',
+    "git switch -c f",
+    'edit index.html "F"',
+    'git commit -am "f"',
+    "git switch main",
+    'edit index.html "M"',
+    'git commit -am "m"',
+    "git merge f",
+    "touch notes.txt",
+  );
+  await page.getByRole("button", { name: /index\.html-এর লেখা দেখুন/ }).first().click();
+  const main = (await page.locator("main").boundingBox())!;
+  const graph = (await page.locator("section").filter({ hasText: "Commit গ্রাফ" }).first().boundingBox())!;
+  expect(graph.y + graph.height).toBeLessThanOrEqual(main.y + main.height + 1);
+});

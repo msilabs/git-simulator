@@ -5,6 +5,7 @@ All notable changes to this project are documented here. The format follows [Kee
 ## [Unreleased]
 
 ### Added
+- Dark mode: follows the system theme, with a toggle in the top bar that remembers your choice. The terminal and graph stay dark in both themes.
 - Missions: a learning path of 11 missions with stages that complete by result, shown below the terminal. The old "first 5 commands" became the first mission, and saved progress carries over.
 - Remotes: `git clone`, `git remote`, `git push` (with `-u` and `--force`), `git fetch`, `git pull` (with Git 2.56's divergent-branch rule, `--no-rebase` and `--ff-only`), `git branch -r/-a/--set-upstream-to`, switching to a branch that only exists on the remote, `git merge origin/main`, and ahead/behind/diverged lines in `git status`. Remote-tracking branches appear in the graph and in `git log --all`. Checked against git 2.56 with a real bare repository: 100 of 102 commands match, the other two are documented simplifications.
 - `teammate`, a simulator helper that pushes an imaginary colleague's commit to the remote.
@@ -23,6 +24,7 @@ All notable changes to this project are documented here. The format follows [Kee
 - `git rm <file>` and `git rm --cached <file>`, with `-f`, `-r .` and real Git's safety checks. `git rm` also resolves a conflict by deleting the file.
 
 ### Fixed
+- On large screens a tall file panel (conflict banner, open file) now scrolls on its own instead of pushing the graph past the bottom of the page.
 - `git log` decorations are now ordered like real Git (`HEAD -> main` first, then the other refs in reverse order).
 - `git add .` now resolves a conflicted file that was deleted to settle the conflict.
 - `git status` output now matches real Git line for line: no blank line right after "On branch", no "unstage" hints during a merge, and no closing hint once all merge conflicts are fixed.

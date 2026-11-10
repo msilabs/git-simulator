@@ -11,6 +11,7 @@ import { ui } from "@/lib/ui-text";
 import { Terminal } from "./Terminal";
 import { FilePanel } from "./FilePanel";
 import { CommitGraph } from "./CommitGraph";
+import { ThemeToggle } from "./ThemeToggle";
 
 const buttonOutline =
   "rounded-lg px-2.5 py-2 text-sm font-semibold text-teal ring-1 ring-teal/30 transition hover:bg-teal/5 sm:px-3";
@@ -102,15 +103,15 @@ export function Simulator() {
 
   return (
     <div className="flex min-h-dvh flex-col lg:h-dvh">
-      <header className="sticky top-[env(safe-area-inset-top,0px)] z-20 border-b border-ink/10 bg-white/90 backdrop-blur">
+      <header className="sticky top-[env(safe-area-inset-top,0px)] z-20 border-b border-line/10 bg-surface/90 backdrop-blur">
         <div className="mx-auto flex max-w-[1500px] items-center justify-between gap-2 px-4 py-3 sm:gap-3">
           <div className="flex min-w-0 items-center gap-2.5">
-            <span className="grid h-9 w-9 shrink-0 place-items-center rounded-xl bg-ink font-mono text-lg font-bold text-mint" aria-hidden>
+            <span className="grid h-9 w-9 shrink-0 place-items-center rounded-xl bg-ink font-mono text-lg font-bold text-mint ring-1 ring-mint/0 dark:ring-mint/40" aria-hidden>
               m
             </span>
             <div className="min-w-0">
-              <h1 className="truncate text-base font-bold leading-tight text-ink sm:text-lg">{ui.appTitle}</h1>
-              <p className="hidden text-xs text-slate sm:block">{ui.tagline}</p>
+              <h1 className="truncate text-base font-bold leading-tight text-fg sm:text-lg">{ui.appTitle}</h1>
+              <p className="hidden text-xs text-muted sm:block">{ui.tagline}</p>
             </div>
           </div>
           <div className="flex shrink-0 items-center gap-1.5 sm:gap-2">
@@ -124,6 +125,7 @@ export function Simulator() {
             >
               ↶<span className="hidden sm:inline"> {ui.undo}</span>
             </button>
+            <ThemeToggle className={buttonOutline} />
             <button type="button" onClick={() => run("help")} className={buttonOutline}>
               {ui.help}
             </button>
@@ -132,7 +134,7 @@ export function Simulator() {
               onClick={() => setConfirmReset(true)}
               aria-label={ui.reset}
               title={ui.reset}
-              className="rounded-lg bg-ink px-2.5 py-2 text-sm font-semibold text-white transition hover:bg-ink-3 sm:px-3"
+              className="rounded-lg bg-fg px-2.5 py-2 text-sm font-semibold text-surface transition hover:opacity-90 sm:px-3"
             >
               <span aria-hidden className="sm:hidden">
                 ↺
@@ -142,7 +144,7 @@ export function Simulator() {
           </div>
         </div>
         {saveFailed && (
-          <p role="status" className="border-t border-sun/40 bg-[#FFF6E5] px-4 py-1.5 text-center text-xs text-ink">
+          <p role="status" className="border-t border-sun/40 bg-[#FFF6E5] px-4 py-1.5 text-center text-xs text-fg dark:bg-[#3A2A0A]">
             ⚠ {ui.saveFailed}
           </p>
         )}
@@ -153,7 +155,8 @@ export function Simulator() {
         <div className="h-[330px] min-w-0 lg:col-start-1 lg:row-start-2 lg:h-auto lg:min-h-0">
           <CommitGraph repo={session.sim.repo} />
         </div>
-        <div className="min-w-0 lg:col-start-1 lg:row-start-1">
+        {/* বড় স্ক্রিনে ফাইল প্যানেল লম্বা হলে নিজেই স্ক্রল হয়, যাতে গ্রাফ নিচে ঠেলে বেরিয়ে না যায় */}
+        <div className="min-w-0 lg:col-start-1 lg:row-start-1 lg:max-h-[calc(100dvh-24rem)] lg:overflow-y-auto lg:rounded-2xl">
           <FilePanel state={session.sim} onRun={run} />
         </div>
         <div className="h-[70dvh] min-h-[380px] min-w-0 lg:col-start-2 lg:row-span-2 lg:row-start-1 lg:h-auto lg:min-h-0">
@@ -169,7 +172,7 @@ export function Simulator() {
         </div>
       </main>
 
-      <footer className="py-3 text-center text-xs text-slate">{ui.footer}</footer>
+      <footer className="py-3 text-center text-xs text-muted">{ui.footer}</footer>
 
       {confirmReset && (
         <div
@@ -180,11 +183,11 @@ export function Simulator() {
           aria-describedby="reset-body"
           onKeyDown={trapFocus}
         >
-          <div ref={dialogRef} className="w-full max-w-sm rounded-2xl bg-white p-5 shadow-xl">
-            <h2 id="reset-title" className="text-lg font-bold text-ink">
+          <div ref={dialogRef} className="w-full max-w-sm rounded-2xl bg-surface p-5 shadow-xl">
+            <h2 id="reset-title" className="text-lg font-bold text-fg">
               {ui.resetTitle}
             </h2>
-            <p id="reset-body" className="mt-2 text-sm text-slate">
+            <p id="reset-body" className="mt-2 text-sm text-muted">
               {ui.resetBody}
             </p>
             <div className="mt-5 flex justify-end gap-2">
@@ -192,7 +195,7 @@ export function Simulator() {
                 type="button"
                 autoFocus
                 onClick={() => setConfirmReset(false)}
-                className="rounded-lg px-4 py-2 text-sm font-semibold text-ink ring-1 ring-ink/20 hover:bg-cloud"
+                className="rounded-lg px-4 py-2 text-sm font-semibold text-fg ring-1 ring-line/20 hover:bg-chip"
               >
                 {ui.resetCancel}
               </button>

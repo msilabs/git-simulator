@@ -56,6 +56,8 @@ In the file panel, tap a working-directory file to see it, then **Edit** to chan
 
 Below the terminal, a learning path of 11 missions guides you: first commit, diff and a second commit, branches, merge and the graph, a merge conflict, undoing file changes, revert and reset, stash, pushing to a remote, pulling a teammate's work, and a rejected push. Each mission has 2-5 stages that complete by result, not by exact text (so `git add .` counts as well as `git add index.html`). Progress is saved and undo steps back through it. All mission text lives in `src/lib/missions.ts`.
 
+The page follows your system's light or dark theme; the **☾ / ☀** button in the top bar switches it and remembers your choice.
+
 The **↶ undo** button in the top bar steps back one command at a time. Real Git has no such button; the explanation says so.
 
 ### Merge conflicts

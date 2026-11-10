@@ -1,6 +1,7 @@
 import type { Metadata, Viewport } from "next";
 import { Hind_Siliguri, JetBrains_Mono } from "next/font/google";
 import "./globals.css";
+import { THEME_SCRIPT } from "@/components/ThemeToggle";
 
 const bengali = Hind_Siliguri({
   variable: "--font-bengali",
@@ -27,7 +28,11 @@ export const viewport: Viewport = {
 
 export default function RootLayout({ children }: Readonly<{ children: React.ReactNode }>) {
   return (
-    <html lang="bn">
+    // data-theme পেজ আঁকার আগে script বসায়, তাই React-এর HTML-এর সাথে না মেলাটা প্রত্যাশিত
+    <html lang="bn" suppressHydrationWarning>
+      <head>
+        <script dangerouslySetInnerHTML={{ __html: THEME_SCRIPT }} />
+      </head>
       <body className={`${bengali.variable} ${code.variable} antialiased`}>{children}</body>
     </html>
   );

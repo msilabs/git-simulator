@@ -13,9 +13,9 @@ const BADGE: Record<Badge, { label: string; className: string }> = {
   untracked: { label: "untracked", className: "bg-slate text-white" },
   modified: { label: "modified", className: "bg-sun text-ink" },
   staged: { label: "staged", className: "bg-mint text-ink" },
-  deleted: { label: "deleted", className: "bg-[#FDE2E2] text-[#8A1C1C]" },
+  deleted: { label: "deleted", className: "bg-[#FDE2E2] text-[#8A1C1C] dark:bg-[#4A1F1F] dark:text-[#FFB4B4]" },
   conflict: { label: "conflict", className: "bg-[#B42318] text-white" },
-  committed: { label: ui.badgeCommitted, className: "bg-cloud text-slate ring-1 ring-slate/20" },
+  committed: { label: ui.badgeCommitted, className: "bg-chip text-muted ring-1 ring-muted/20" },
 };
 
 interface Row {
@@ -57,18 +57,18 @@ function Column({ id, title, hint, rows, empty, onEdit }: ColumnProps) {
     }
   };
   return (
-    <div className="flex min-w-0 flex-col rounded-xl bg-white p-3 ring-1 ring-ink/10">
-      <h3 className="text-sm font-semibold text-ink">{title}</h3>
-      <p className="mb-2 text-xs text-slate">{hint}</p>
+    <div className="flex min-w-0 flex-col rounded-xl bg-surface p-3 ring-1 ring-line/10">
+      <h3 className="text-sm font-semibold text-fg">{title}</h3>
+      <p className="mb-2 text-xs text-muted">{hint}</p>
       {rows.length === 0 ? (
-        <p className="rounded-lg border border-dashed border-slate/30 px-2 py-3 text-center text-xs text-slate">{empty}</p>
+        <p className="rounded-lg border border-dashed border-muted/30 px-2 py-3 text-center text-xs text-muted">{empty}</p>
       ) : (
         <ul className="space-y-1.5">
           {rows.map((r) => {
             const isOpen = open === r.name;
             const panelId = `${id}-${r.name}`;
             return (
-              <li key={r.name} className="rounded-lg bg-cloud">
+              <li key={r.name} className="rounded-lg bg-chip">
                 <button
                   type="button"
                   onClick={() => {
@@ -78,9 +78,9 @@ function Column({ id, title, hint, rows, empty, onEdit }: ColumnProps) {
                   aria-expanded={isOpen}
                   aria-controls={panelId}
                   aria-label={`${ui.showContent(r.name)}${r.badge ? ` (${BADGE[r.badge].label})` : ""}`}
-                  className="flex w-full items-center justify-between gap-2 rounded-lg px-2 py-1.5 text-left hover:bg-ink/5 focus-visible:outline-2 focus-visible:outline-teal"
+                  className="flex w-full items-center justify-between gap-2 rounded-lg px-2 py-1.5 text-left hover:bg-line/5 focus-visible:outline-2 focus-visible:outline-teal"
                 >
-                  <span className={`truncate font-mono text-[13px] text-ink ${r.strike ? "line-through opacity-60" : ""}`}>
+                  <span className={`truncate font-mono text-[13px] text-fg ${r.strike ? "line-through opacity-60" : ""}`}>
                     {r.name}
                   </span>
                   {r.badge && (
@@ -90,7 +90,7 @@ function Column({ id, title, hint, rows, empty, onEdit }: ColumnProps) {
                   )}
                 </button>
                 {isOpen && editing === r.name && (
-                  <div id={panelId} className="border-t border-ink/10 p-2">
+                  <div id={panelId} className="border-t border-line/10 p-2">
                     <textarea
                       value={draft}
                       onChange={(e) => setDraft(e.target.value)}
@@ -99,21 +99,21 @@ function Column({ id, title, hint, rows, empty, onEdit }: ColumnProps) {
                       spellCheck={false}
                       rows={Math.min(10, Math.max(3, draft.split("\n").length + 1))}
                       aria-label={ui.editorLabel(r.name)}
-                      className="w-full resize-y rounded-md bg-white p-2 font-mono text-[16px] text-ink ring-1 ring-ink/20 focus:outline-2 focus:outline-teal sm:text-xs"
+                      className="w-full resize-y rounded-md bg-surface p-2 font-mono text-[16px] text-fg ring-1 ring-line/20 focus:outline-2 focus:outline-teal sm:text-xs"
                     />
-                    <p className="mt-1 text-[11px] text-slate">{ui.editorHint}</p>
+                    <p className="mt-1 text-[11px] text-muted">{ui.editorHint}</p>
                     <div className="mt-1.5 flex justify-end gap-2">
                       <button
                         type="button"
                         onClick={() => setEditing(null)}
-                        className="rounded-md px-2.5 py-1 text-xs font-semibold text-ink ring-1 ring-ink/20 hover:bg-white"
+                        className="rounded-md px-2.5 py-1 text-xs font-semibold text-fg ring-1 ring-line/20 hover:bg-surface"
                       >
                         {ui.editorCancel}
                       </button>
                       <button
                         type="button"
                         onClick={() => save(r.name)}
-                        className="rounded-md bg-teal px-2.5 py-1 text-xs font-semibold text-white hover:brightness-110"
+                        className="rounded-md bg-teal px-2.5 py-1 text-xs font-semibold text-surface hover:brightness-110"
                       >
                         {ui.editorSave}
                       </button>
@@ -121,8 +121,8 @@ function Column({ id, title, hint, rows, empty, onEdit }: ColumnProps) {
                   </div>
                 )}
                 {isOpen && editing !== r.name && (
-                  <div id={panelId} className="border-t border-ink/10">
-                    <pre className="max-h-40 overflow-auto whitespace-pre-wrap break-words px-2 py-1.5 font-mono text-xs text-ink">
+                  <div id={panelId} className="border-t border-line/10">
+                    <pre className="max-h-40 overflow-auto whitespace-pre-wrap break-words px-2 py-1.5 font-mono text-xs text-fg">
                       {r.content === undefined ? ui.deletedFile : r.content === "" ? ui.emptyFile : r.content}
                     </pre>
                     {onEdit && r.content !== undefined && (
@@ -187,9 +187,9 @@ export function FilePanel({ state, onRun }: { state: SimState; onRun: (command: 
     : (["untracked", "modified", "staged"] as const);
 
   return (
-    <section aria-label={ui.filesTitle} className="rounded-2xl bg-white/60 p-3 ring-1 ring-ink/10">
+    <section aria-label={ui.filesTitle} className="rounded-2xl bg-surface/60 p-3 ring-1 ring-line/10">
       <div className="mb-3 flex flex-wrap items-center justify-between gap-2 px-1">
-        <h2 className="font-semibold text-ink">{ui.filesTitle}</h2>
+        <h2 className="font-semibold text-fg">{ui.filesTitle}</h2>
         <ul className="flex flex-wrap gap-1.5 text-[11px]" aria-label={ui.legendLabel}>
           {legend.map((b) => (
             <li key={b} className={`rounded-full px-2 py-0.5 font-semibold ${BADGE[b].className}`}>
@@ -199,7 +199,7 @@ export function FilePanel({ state, onRun }: { state: SimState; onRun: (command: 
         </ul>
       </div>
       {repo?.merge && (
-        <div className="mb-3 rounded-xl border border-[#B42318]/30 bg-[#FEF3F2] px-3 py-2 text-sm text-[#7A271A]">
+        <div className="mb-3 rounded-xl border border-[#B42318]/30 bg-[#FEF3F2] px-3 py-2 text-sm text-[#7A271A] dark:bg-[#3A1515] dark:text-[#FFC9C2]">
           <strong>
             {repo.merge.kind === "stash"
               ? ui.stashConflictBannerTitle
@@ -226,7 +226,7 @@ export function FilePanel({ state, onRun }: { state: SimState; onRun: (command: 
         </div>
       )}
       {repo && repo.stash.length > 0 && (
-        <p className="mb-3 text-xs text-slate">
+        <p className="mb-3 text-xs text-muted">
           <RichText text={ui.stashNote(repo.stash.length)} codeClassName="font-mono" />
         </p>
       )}

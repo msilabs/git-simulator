@@ -19,15 +19,15 @@ export class ErrorBoundary extends Component<{ children: ReactNode }, { failed: 
   render() {
     if (!this.state.failed) return this.props.children;
     return (
-      <main role="alert" className="grid min-h-dvh place-items-center bg-cloud p-4">
-        <div className="w-full max-w-md rounded-2xl bg-white p-6 shadow-xl ring-1 ring-ink/10">
-          <h1 className="text-lg font-bold text-ink">{ui.crashTitle}</h1>
-          <p className="mt-2 text-sm text-slate">{ui.crashBody}</p>
+      <main role="alert" className="grid min-h-dvh place-items-center bg-page p-4">
+        <div className="w-full max-w-md rounded-2xl bg-surface p-6 shadow-xl ring-1 ring-line/10">
+          <h1 className="text-lg font-bold text-fg">{ui.crashTitle}</h1>
+          <p className="mt-2 text-sm text-muted">{ui.crashBody}</p>
           <div className="mt-5 flex flex-wrap gap-2">
             <button
               type="button"
               onClick={() => window.location.reload()}
-              className="rounded-lg bg-ink px-4 py-2 text-sm font-semibold text-white hover:bg-ink-3"
+              className="rounded-lg bg-fg px-4 py-2 text-sm font-semibold text-surface hover:opacity-90"
             >
               {ui.crashReload}
             </button>
@@ -37,7 +37,7 @@ export class ErrorBoundary extends Component<{ children: ReactNode }, { failed: 
                 clearSession();
                 window.location.reload();
               }}
-              className="rounded-lg px-4 py-2 text-sm font-semibold text-ink ring-1 ring-ink/20 hover:bg-cloud"
+              className="rounded-lg px-4 py-2 text-sm font-semibold text-fg ring-1 ring-line/20 hover:bg-chip"
             >
               {ui.crashReset}
             </button>

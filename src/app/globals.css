@@ -12,7 +12,18 @@
   --color-slate: #5b6782;
   --color-cloud: #f5f7fb;
   --color-danger: #ff8a8a;
+
+  /* হালকা অংশের (পেজ, header, ফাইল প্যানেল, মোডাল) অর্থবোধক রং; dark mode-এ নিচে বদলায় */
+  --color-page: #f5f7fb;
+  --color-surface: #ffffff;
+  --color-fg: #14213d;
+  --color-muted: #5b6782;
+  --color-chip: #f5f7fb;
+  --color-line: #14213d;
 }
+
+/* `dark:` মানে <html data-theme="dark"> (layout-এর ছোট script সিস্টেম বা আগের পছন্দ দেখে বসায়) */
+@custom-variant dark (&:where([data-theme="dark"], [data-theme="dark"] *));
 
 /* ফন্টের ভ্যারিয়েবল next/font <body>-তে বসায়, তাই inline রাখতে হয় */
 @theme inline {
@@ -24,10 +35,22 @@
   color-scheme: light;
 }
 
+/* টার্মিনাল আর গ্রাফ এমনিতেই গাঢ়, তাই শুধু হালকা অংশের রং বদলায় */
+:root[data-theme="dark"] {
+  color-scheme: dark;
+  --color-page: #0b1220;
+  --color-surface: #131d33;
+  --color-fg: #e6ebf5;
+  --color-muted: #9aa6c0;
+  --color-chip: #1b2742;
+  --color-line: #e6ebf5;
+  --color-teal: #34d3b0;
+}
+
 html,
 body {
-  background: var(--color-cloud);
-  color: var(--color-ink);
+  background: var(--color-page);
+  color: var(--color-fg);
 }
 
 body {
