@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { applyCommand, freshSession, MAX_LOG } from "../src/lib/session";
+import { applyCommand, freshSession, MAX_LOG, undo } from "../src/lib/session";
 import { loadSession, parseSaved, saveSession, serializeSession } from "../src/lib/storage";
 import { runAll } from "../src/lib/git/repo";
 
@@ -32,6 +32,26 @@ describe("storage", () => {
     expect(r.session.past).toHaveLength(s.past.length); // রিলোডের পরও undo চলে
     expect(r.session.lines).toEqual(s.lines);
     expect(r.session.nextId).toBeGreaterThan(Math.max(...s.lines.map((l) => l.id)));
+  });
+
+  it("undo after a reload restores the starter step that was saved", () => {
+    const steps = ["git init", "touch index.html", "git add index.html", 'git commit -m "first"', "git log", "touch b"];
+    const s = steps.reduce(applyCommand, freshSession());
+    expect(s.step).toBe(5);
+    const r = parseSaved(serializeSession(s));
+    if (r.status !== "ok") throw new Error("not ok");
+    // `git log` state বদলায় না বলে replay একা বুঝতে পারে না যে ধাপ ৫ আগেই শেষ হয়েছিল
+    expect(undo(r.session).step).toBe(5);
+    expect(undo(undo(r.session)).step).toBe(3);
+  });
+
+  it("falls back to replayed steps for saves without them", () => {
+    const s = ["git init", "touch a"].reduce(applyCommand, freshSession());
+    const saved = JSON.parse(serializeSession(s));
+    delete saved.steps;
+    const r = parseSaved(JSON.stringify(saved));
+    if (r.status !== "ok") throw new Error("not ok");
+    expect(r.session.past.map((p) => p.step)).toEqual([0, 1]);
   });
 
   it("reports empty storage and corrupt data instead of crashing", () => {

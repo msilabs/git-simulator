@@ -4,7 +4,13 @@ All notable changes to this project are documented here. The format follows [Kee
 
 ## [Unreleased]
 
+### Added
+- `git commit -a` / `--all`, including `-am "message"`. Short options can be combined like in real Git.
+- `git rm <file>` and `git rm --cached <file>`, with `-f`, `-r .` and real Git's safety checks. `git rm` also resolves a conflict by deleting the file.
+
 ### Fixed
+- `git add .` now resolves a conflicted file that was deleted to settle the conflict.
+- Undo after a reload restores the starter step that was saved, instead of dropping back one step.
 - Typing a name that exists on every JavaScript object (`toString`, `constructor`, `git constructor`, `git switch toString` and so on) no longer crashes the page. These names now work like any other file or branch name. `__proto__` is refused as a file or branch name.
 - The crash screen first offers a plain reload, which keeps saved progress. "Start over" is now the second option.
 

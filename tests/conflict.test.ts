@@ -209,6 +209,11 @@ describe("merge conflicts", () => {
     expect(r.output).toContain("deleted in HEAD and modified in feature.  Version feature of index.html left in tree.");
     expect(r.state.workdir["index.html"]).toBe("changed");
     expect(repoOf(r.state).merge?.unmerged).toEqual({ "index.html": "deleted by us" });
+
+    // মুছে ফেলেই মেটানো: ফাইল ফোল্ডার আর index দুই জায়গাতেই নেই, তবু `git add .` এটাকে ধরে
+    const resolved = exec(["rm index.html", "git add ."], r.state);
+    expect(repoOf(resolved.state).merge?.unmerged).toEqual({});
+    expect(exec(["git commit"], resolved.state).ok).toBe(true);
   });
 
   it("shows the conflicted file in git diff", () => {

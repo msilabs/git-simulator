@@ -52,6 +52,8 @@ describe("command dispatch", () => {
       "git diff",
       "ls",
       "cat a",
+      'git commit -am "x"',
+      "git rm nope",
     ]) {
       expect(runCommand(s, cmd).state, cmd).toBe(s);
     }

@@ -15,6 +15,7 @@ import { merge } from "./merge";
 import { diff } from "./diff";
 import { restore } from "./restore";
 import { rm } from "./rm";
+import { gitRm } from "./gitRm";
 import { touch } from "./touch";
 import { edit } from "./edit";
 import { ls } from "./ls";
@@ -41,6 +42,7 @@ export const GIT_COMMANDS: Readonly<Record<string, GitCommand>> = {
   merge: { run: merge },
   diff: { run: diff },
   restore: { run: restore },
+  rm: { run: gitRm },
 };
 
 /** সিমুলেটরের সহায়ক কমান্ড (Git নয়) */

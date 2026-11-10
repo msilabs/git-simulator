@@ -82,6 +82,79 @@ describe("git commit", () => {
     expect(repo.commits[repo.branches.main].message).toBe("title\n\nbody");
   });
 
+  it("-a stages modified and deleted tracked files, but not untracked ones", () => {
+    const base = ["git init", 'edit a "a"', 'edit b "b"', "git add .", 'git commit -m "first"'];
+    const r = exec([...base, 'edit a "changed"', "rm b", "touch new", 'git commit -a -m "second"']);
+    expect(r.ok).toBe(true);
+    const repo = repoOf(r.state);
+    expect(repo.commits[repo.branches.main].files).toEqual({ a: "changed" });
+    expect(repo.index).toEqual({ a: "changed" });
+    expect(r.output).toContain(" 2 files changed, 1 insertion(+), 2 deletions(-)");
+    expect(r.explanation).toContain("`-a` দিয়ে a, b-এর বদল নিজে থেকেই staged হলো");
+    expect(r.explanation).toContain("নতুন untracked ফাইল (new)");
+    expect(exec(["git status"], r.state).output).toContain("Untracked files:");
+  });
+
+  it("accepts -am, -am with the message attached, and --all", () => {
+    const base = state(["git init", 'edit a "a"', "git add .", 'git commit -m "first"', 'edit a "b"']);
+    for (const cmd of ['git commit -am "msg"', 'git commit -am"msg"', 'git commit --all -m "msg"', 'git commit -a --message "msg"']) {
+      const r = exec([cmd], base);
+      expect(r.ok, cmd).toBe(true);
+      const repo = repoOf(r.state);
+      expect(repo.commits[repo.branches.main].message, cmd).toBe("msg");
+    }
+    // -ma মানে মেসেজ "a", আসল Git-এর মতো
+    const ma = exec(["git add .", "git commit -ma"], base);
+    expect(repoOf(ma.state).commits[repoOf(ma.state).branches.main].message).toBe("a");
+  });
+
+  it("-a with nothing changed or without a message leaves the index alone", () => {
+    const clean = state(["git init", 'edit a "a"', "git add .", 'git commit -m "first"']);
+    expect(exec(['git commit -am "x"'], clean).output).toContain("nothing to commit, working tree clean");
+    const dirty = state(['edit a "b"'], clean);
+    const r = exec(["git commit -a"], dirty);
+    expect(r.ok).toBe(false);
+    expect(r.state).toBe(dirty);
+    expect(exec(["git commit -am"], dirty).output).toBe("error: switch `m' requires a value");
+    expect(exec(['git commit -x -m "m"'], dirty).output).toBe("error: unsupported in simulator: -x");
+  });
+
+  it("-a stages conflicted files too and commits them, markers included, like real Git", () => {
+    const r = exec([
+      "git init",
+      'edit f "base"',
+      "git commit -am base",
+    ]);
+    expect(r.ok).toBe(false); // প্রথম commit-এর আগে f untracked, -a তাকে নেয় না
+    const s = state([
+      "git init",
+      'edit f "base"',
+      "git add .",
+      'git commit -m "base"',
+      "git switch -c feature",
+      'edit f "theirs"',
+      "git commit -am theirs",
+      "git switch main",
+      'edit f "ours"',
+      "git commit -am ours",
+      "git merge feature",
+    ]);
+    expect(exec(["git commit -m done"], s).output).toContain("error: Committing is not possible because you have unmerged files.");
+    const careless = exec(["git commit -am done"], s);
+    expect(careless.ok).toBe(true);
+    const merged = repoOf(careless.state);
+    expect(merged.merge).toBeNull();
+    expect(merged.commits[merged.branches.main].files.f).toContain("<<<<<<< HEAD");
+    expect(merged.commits[merged.branches.main].parents).toHaveLength(2);
+    expect(careless.explanation).toContain("চিহ্নসহ commit করে ফেলল");
+    const finished = exec(['edit f "fixed"', "git add f", 'edit f "fixed again"', "git commit -a"], s);
+    expect(finished.ok).toBe(true);
+    const repo = repoOf(finished.state);
+    const head = repo.commits[repo.branches.main];
+    expect(head.parents).toHaveLength(2);
+    expect(head.files).toEqual({ f: "fixed again" });
+  });
+
   it("gives unique ids even for identical commits", () => {
     let s = state(["git init"]);
     const ids = new Set<string>();

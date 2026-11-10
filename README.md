@@ -18,6 +18,7 @@ No real Git runs here. A small, pure TypeScript model of Git lives in `src/lib/g
 | `git status` | Show the branch plus staged, modified and untracked files |
 | `git add <file>...` / `git add .` | Stage files |
 | `git commit -m "message"` | Create a commit from the staging area |
+| `git commit -a -m "message"` / `-am` | Stage every modified or deleted tracked file, then commit (untracked files are left out) |
 | `git log` / `git log --oneline` | Show history reachable from the current branch |
 | `git branch` / `git branch <name>` | List branches / create a branch at the current commit |
 | `git switch <name>` / `git switch -c <name>` | Switch branches / create and switch |
@@ -28,6 +29,7 @@ No real Git runs here. A small, pure TypeScript model of Git lives in `src/lib/g
 | `git restore <file>` / `git restore --staged <file>` | Discard working-tree changes / unstage (`.` for everything) |
 | `git branch -d` / `-D <name>` | Delete a merged branch / force-delete |
 | `git branch -m` / `-M [<old>] <new>` | Rename a branch |
+| `git rm <file>` / `git rm --cached <file>` | Delete a tracked file and stage the deletion / stop tracking it but keep the file (`-f` to force, `-r .` for everything) |
 
 Simulator-only helpers: `touch <file>`, `edit <file> "text"` (use `\n` for new lines), `rm <file>`, `ls`, `cat <file>`, `help`, `clear`.
 
@@ -35,7 +37,7 @@ The **↶ undo** button in the top bar steps back one command at a time. Real Gi
 
 ### Merge conflicts
 
-Merges are line-based (diff3). If the two branches changed different lines, Git merges them automatically. If they changed the same lines, the merge stops, writes Git-style conflict markers into the file, and `git status` lists "Unmerged paths". You resolve it the real way: `edit` the file, then `git add` it, then `git commit`. Modify/delete and add/add conflicts are supported too.
+Merges are line-based (diff3). If the two branches changed different lines, Git merges them automatically. If they changed the same lines, the merge stops, writes Git-style conflict markers into the file, and `git status` lists "Unmerged paths". You resolve it the real way: `edit` the file, then `git add` it, then `git commit`. Modify/delete and add/add conflicts are supported too. To resolve a conflict by deleting the file, use `git rm <file>`.
 
 Other Git commands are recognised as "not in the simulator yet".
 

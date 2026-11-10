@@ -56,6 +56,11 @@ export const msg = {
   commitDone: (id: string, branch: string) =>
     `নতুন commit ${id} তৈরি হলো। ${branch} এখন এটাকে দেখাচ্ছে।`,
   commitFirst: "এটা এই রিপোর প্রথম commit (root commit), তাই এর কোনো parent নেই।",
+  commitAll: (paths: readonly string[], untracked: readonly string[]) =>
+    `\`-a\` দিয়ে ${list(paths)}-এর বদল নিজে থেকেই staged হলো (আলাদা করে \`git add\` লাগেনি)।` +
+    (untracked.length
+      ? ` তবে নতুন untracked ফাইল (${list(untracked)}) \`-a\`-তে যায় না; সেগুলোর জন্য আগে \`git add\` দিতে হয়।`
+      : ""),
 
   /* ---------- log ---------- */
   logNoCommits: (branch: string) => `${branch} branch-এ এখনো কোনো commit নেই। আগে একটা commit করুন।`,
@@ -128,6 +133,8 @@ export const msg = {
       : "merge চলছে, সব conflict মেটানো হয়েছে। এখন `git commit` দিলে merge commit তৈরি হবে।",
   commitUnmerged: (paths: readonly string[]) =>
     `${list(paths)}-এর conflict এখনো মেটানো হয়নি। ফাইল ঠিক করে \`git add ${paths[0]}\` দিন, তারপর commit করুন।`,
+  commitWithMarkers: (paths: readonly string[]) =>
+    `সাবধান: \`-a\` conflict মেটানো বাকি থাকা ফাইলও (${list(paths)}) তাদের <<<<<<< ======= >>>>>>> চিহ্নসহ commit করে ফেলল। আসল Git-ও এটাই করে। সাধারণত আগে \`edit\` দিয়ে চিহ্নগুলো মুছে তারপর commit করতে হয়।`,
   commitMergeDone: (id: string, branch: string, target: string) =>
     `merge শেষ! নতুন merge commit ${id} তৈরি হলো, এর দুটো parent: ${branch}-এর আগের commit আর ${target}-এর commit।`,
   addResolved: (paths: readonly string[]) => `${list(paths)}-এর conflict মেটানো হয়েছে বলে চিহ্নিত হলো।`,
@@ -171,6 +178,23 @@ export const msg = {
     `${name}-এর কিছু commit এখনো বর্তমান branch-এ merge হয়নি, মুছলে সেগুলো হারিয়ে যাবে। আগে \`git merge ${name}\` করুন, অথবা নিশ্চিত হলে \`git branch -D ${name}\`।`,
   branchRenameMissing: "নতুন নাম দিন, যেমন `git branch -m new-name` (বর্তমান branch) বা `git branch -m old new`।",
   branchRenamed: (from: string, to: string) => `branch ${from}-এর নাম বদলে ${to} হলো। commit-গুলো একই আছে।`,
+
+  /* ---------- git rm ---------- */
+  gitRmMissingArg: "কোন ফাইল মুছবেন তা বলুন, যেমন `git rm notes.txt`। ফাইল রেখে শুধু Git থেকে সরাতে `git rm --cached notes.txt`।",
+  gitRmNoMatch: (path: string) =>
+    `${path} Git চেনে না (untracked বা নেই)। \`git rm\` শুধু tracked ফাইলে চলে; untracked ফাইল মুছতে সাধারণ \`rm ${path}\`।`,
+  gitRmNeedsRecursive: "সব ফাইল একসাথে মুছতে `-r` লাগে: `git rm -r .` (সাবধান, সব tracked ফাইল মুছে যাবে)।",
+  gitRmBlocked: (paths: readonly string[], cachedOk: boolean) =>
+    `${list(paths)}-এ এমন বদল আছে যা এখনো commit হয়নি; মুছলে সেটা হারিয়ে যেত, তাই Git থামল।` +
+    (cachedOk ? ` ফাইল রেখে শুধু Git থেকে সরাতে \`git rm --cached ${paths[0]}\`।` : "") +
+    ` নিশ্চিত হলে জোর করে মুছতে \`git rm -f ${paths[0]}\`।`,
+  gitRmDone: (paths: readonly string[]) =>
+    `${list(paths)} ফোল্ডার আর staging area দুই জায়গা থেকেই মুছে গেল, আর মুছে ফেলাটা staged। পরের commit-এ ফাইলটা আর থাকবে না। (\`rm\` আর \`git add\` একসাথে করার মতো।)`,
+  gitRmCached: (paths: readonly string[], committed: boolean) =>
+    `${list(paths)} staging area থেকে সরানো হলো, কিন্তু ফাইলটা ফোল্ডারে রয়ে গেল; Git এখন এটাকে untracked দেখছে।` +
+    (committed ? " পরের commit-এ এটা repo থেকে মুছে যাবে, তবে আপনার ফোল্ডারে থাকবে।" : ""),
+  gitRmResolved: (paths: readonly string[]) =>
+    `${list(paths)}-এর conflict মুছে ফেলার মাধ্যমে মেটানো হলো: merge-এর পর ফাইলটা থাকবে না।`,
 
   /* ---------- rm (সহায়ক) ---------- */
   rmMissingArg: "কোন ফাইল মুছবেন তার নাম দিন, যেমন `rm notes.txt`।",
@@ -218,7 +242,7 @@ export const HELP_ENTRIES: ReadonlyArray<readonly [string, string]> = [
   ["git init", "নতুন রিপোজিটরি শুরু করে"],
   ["git status", "কোন branch-এ আছেন আর কোন ফাইলের কী অবস্থা দেখায়"],
   ["git add <file> | git add .", "ফাইল staging area-তে পাঠায়"],
-  ['git commit -m "message"', "staged ফাইলগুলো নিয়ে নতুন commit বানায়"],
+  ['git commit [-a] -m "message"', "staged ফাইলগুলো নিয়ে নতুন commit বানায় (-a: বদলানো tracked ফাইল নিজে stage করে)"],
   ["git log [--oneline]", "commit-এর ইতিহাস দেখায়"],
   ["git branch [<name>]", "branch-এর তালিকা দেখায় / নতুন branch বানায়"],
   ["git switch [-c] <name>", "অন্য branch-এ যায় (-c দিলে নতুন বানিয়ে)"],
@@ -229,6 +253,7 @@ export const HELP_ENTRIES: ReadonlyArray<readonly [string, string]> = [
   ["git restore [--staged] <file>", "ফাইলের বদল বাদ দেয় / staging থেকে নামায়"],
   ["git branch -d|-D <name>", "branch মোছে (-D জোর করে)"],
   ["git branch -m [<old>] <new>", "branch-এর নাম বদলায়"],
+  ["git rm [--cached] <file>", "ফাইল মোছে আর মুছে ফেলাটা stage করে (--cached: ফাইল রেখে শুধু Git থেকে সরায়)"],
   ["touch <file>", "খালি নতুন ফাইল বানায়"],
   ['edit <file> "লেখা"', "ফাইলের লেখা বদলায় (না থাকলে বানায়)"],
   ["ls", "ফাইলের তালিকা দেখায়"],

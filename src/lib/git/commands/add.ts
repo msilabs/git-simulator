@@ -2,6 +2,9 @@ import type { CommandHandler, ConflictKind, FileMap } from "../types";
 import { allPaths, failure, get, has, sameFiles, setFile, success } from "../helpers";
 import { msg } from "../messages";
 
+/** ফাইলে এখনো merge conflict-এর <<<<<<< বা >>>>>>> চিহ্ন আছে কি না */
+export const CONFLICT_MARKER = /^(<{7}|>{7}) /m;
+
 /**
  * `git add <file>...`, `git add .`, `git add -A`
  * index-এ ফাইলের বর্তমান লেখা রাখে। tracked ফাইল working directory থেকে মুছে
@@ -23,7 +26,7 @@ export const add: CommandHandler = (state, args) => {
     );
   }
 
-  const targets = all ? allPaths(state.workdir, repo.index) : paths;
+  const targets = all ? allPaths(state.workdir, repo.index, repo.merge?.unmerged ?? {}) : paths;
   // আসল Git একটাও pathspec না মিললে কিছুই stage না করে থেমে যায়।
   if (!all) {
     for (const p of paths) {
@@ -51,7 +54,7 @@ export const add: CommandHandler = (state, args) => {
   }
 
   if (resolved.length) {
-    const markers = resolved.filter((p) => /^(<{7}|>{7}) /m.test(get(state.workdir, p) ?? ""));
+    const markers = resolved.filter((p) => CONFLICT_MARKER.test(get(state.workdir, p) ?? ""));
     const explanation = [
       msg.addResolved(resolved),
       markers.length ? msg.addStillMarkers(markers) : "",

@@ -24,6 +24,9 @@ export type { TerminalLine };
 
 const KEY = "msilabs-git-simulator:v1";
 
+const isNumberArray = (x: unknown): x is number[] =>
+  Array.isArray(x) && x.every((v) => typeof v === "number" && Number.isInteger(v) && v >= 0);
+
 interface SavedV2 {
   readonly v: 2;
   readonly base: SimState;
@@ -31,6 +34,11 @@ interface SavedV2 {
   readonly lines: readonly TerminalLine[];
   readonly history: readonly string[];
   readonly step: number;
+  /**
+   * `log`-এর প্রতিটা কমান্ডের আগের শুরুর-ধাপ (undo-র জন্য)। replay এটা নিজে বের করতে পারে না,
+   * কারণ শেষ ধাপ (`git log`) state বদলায় না বলে `log`-এ থাকে না। পুরোনো সেভে নেই, তাই ঐচ্ছিক।
+   */
+  readonly steps?: readonly number[];
 }
 
 export type LoadResult =
@@ -61,7 +69,12 @@ export function parseSaved(raw: string | null): LoadResult {
       return { status: "corrupt" };
     }
     base = normalizeSimState(base);
-    const replayed = replay(base, log);
+    let replayed = replay(base, log);
+    const steps = d.steps;
+    // কোনো কমান্ড বাদ পড়লে (replayed.log ছোট হলে) ধাপগুলো আর মেলে না; তখন replay-এর হিসাবই থাকে।
+    if (isNumberArray(steps) && steps.length === log.length && replayed.log.length === log.length) {
+      replayed = { ...replayed, past: replayed.past.map((p, i) => ({ ...p, step: steps[i] })) };
+    }
     const nextId = Math.max(0, ...lines.map((l) => l.id)) + 1;
     return { status: "ok", session: { ...freshSession(), ...replayed, base, lines, history, step, nextId } };
   } catch {
@@ -80,7 +93,15 @@ export function loadSession(): LoadResult {
 }
 
 export function serializeSession(s: Session): string {
-  const saved: SavedV2 = { v: 2, base: s.base, log: s.log, lines: s.lines, history: s.history, step: s.step };
+  const saved: SavedV2 = {
+    v: 2,
+    base: s.base,
+    log: s.log,
+    lines: s.lines,
+    history: s.history,
+    step: s.step,
+    steps: s.past.map((p) => p.step),
+  };
   return JSON.stringify(saved);
 }
 
