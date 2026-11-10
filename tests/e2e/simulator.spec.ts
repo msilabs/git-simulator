@@ -128,3 +128,25 @@ test("two tabs stay in sync instead of overwriting each other's progress", async
     await expect(second.getByText(name, { exact: true }).first()).toBeVisible();
   }
 });
+
+test("Tab completes like a real terminal, and a double Tab lists the matches", async ({ page }) => {
+  await run(page, "git init", 'edit index.html "a"', 'edit index.css "b"', 'edit notes.txt "n"');
+  const input = page.getByLabel("কমান্ড লিখুন");
+
+  await input.fill("cat no");
+  await input.press("Tab");
+  await expect(input).toHaveValue("cat notes.txt ");
+  await expect(input).toBeFocused();
+
+  await input.fill("cat ind");
+  await input.press("Tab");
+  await expect(input).toHaveValue("cat index.");
+  await input.press("Tab");
+  await expect(log(page)).toContainText("index.css  index.html");
+  await expect(input).toHaveValue("cat index.");
+
+  // খালি লাইনে Tab focus সরিয়ে দেয়
+  await input.fill("");
+  await input.press("Tab");
+  await expect(input).not.toBeFocused();
+});

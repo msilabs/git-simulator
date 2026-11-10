@@ -2,6 +2,7 @@
 
 import { useEffect, useRef, useState, type KeyboardEvent } from "react";
 import type { TerminalLine } from "@/lib/storage";
+import type { Completion } from "@/lib/git/complete";
 import { RichText } from "./RichText";
 import { OutputBlock } from "./OutputBlock";
 import { ui } from "@/lib/ui-text";
@@ -17,6 +18,10 @@ interface TerminalProps {
   prompt: string;
   steps: readonly Step[];
   onRun: (command: string) => void;
+  /** কার্সরের আগের লেখা পূর্ণ করার চেষ্টা (Tab) */
+  complete: (before: string) => Completion | null;
+  /** পরপর দুইবার Tab দিলে মিলগুলোর তালিকা দেখানো */
+  onListCompletions: (text: string, candidates: readonly string[]) => void;
 }
 
 const lineClass: Record<TerminalLine["kind"], string> = {
@@ -28,11 +33,13 @@ const lineClass: Record<TerminalLine["kind"], string> = {
   welcome: "font-sans text-white",
 };
 
-export function Terminal({ lines, history, prompt, steps, onRun }: TerminalProps) {
+export function Terminal({ lines, history, prompt, steps, onRun, complete, onListCompletions }: TerminalProps) {
   const [value, setValue] = useState("");
   // history-তে কোথায় আছি; history.length মানে "নতুন লাইন"
   const [cursor, setCursor] = useState<number | null>(null);
   const draft = useRef("");
+  // আগের চাপা কী-ও কি Tab ছিল? (আসল শেলে দ্বিতীয় Tab মিলের তালিকা দেখায়)
+  const lastWasTab = useRef(false);
   const inputRef = useRef<HTMLInputElement>(null);
   const scrollRef = useRef<HTMLDivElement>(null);
 
@@ -48,7 +55,33 @@ export function Terminal({ lines, history, prompt, steps, onRun }: TerminalProps
     draft.current = "";
   };
 
+  const onTab = (e: KeyboardEvent<HTMLInputElement>) => {
+    // খালি লাইনে Tab আগের মতো focus সরায়, যাতে কীবোর্ড দিয়ে টার্মিনাল থেকে বের হওয়া যায়
+    if (!value.trim()) return;
+    e.preventDefault();
+    const cursor = e.currentTarget.selectionStart ?? value.length;
+    const before = value.slice(0, cursor);
+    const after = value.slice(cursor);
+    const result = complete(before);
+    const secondTab = lastWasTab.current;
+    lastWasTab.current = true;
+    if (!result) return;
+    if (result.text !== before) {
+      setValue(result.text + after);
+      setCursor(null);
+      const caret = result.text.length;
+      requestAnimationFrame(() => inputRef.current?.setSelectionRange(caret, caret));
+    } else if (secondTab && result.candidates.length > 1) {
+      onListCompletions(value, result.candidates);
+    }
+  };
+
   const onKeyDown = (e: KeyboardEvent<HTMLInputElement>) => {
+    if (e.key === "Tab" && !e.shiftKey && !e.altKey && !e.ctrlKey && !e.metaKey) {
+      onTab(e);
+      return;
+    }
+    lastWasTab.current = false;
     if (e.key === "Enter") {
       e.preventDefault();
       submit(value);

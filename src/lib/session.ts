@@ -105,6 +105,16 @@ export function applyCommand(s: Session, command: string): Session {
   });
 }
 
+/**
+ * পরপর দুইবার Tab: আসল শেলের মতো লেখা লাইনটা আর মিলগুলোর তালিকা দেখায়।
+ * কোনো কমান্ড চলে না, state বা history বদলায় না।
+ */
+export function showCompletions(s: Session, text: string, candidates: readonly string[]): Session {
+  const input: TerminalLine = { id: s.nextId, kind: "input", text, prompt: promptFor(s.sim) };
+  const list: TerminalLine = { id: s.nextId + 1, kind: "output", text: candidates.join("  ") };
+  return { ...s, lines: [...s.lines, input, list].slice(-MAX_LINES), nextId: s.nextId + 2 };
+}
+
 export function undo(s: Session): Session {
   const last = s.past[s.past.length - 1];
   if (!last) return s;

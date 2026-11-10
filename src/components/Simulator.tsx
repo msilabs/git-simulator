@@ -2,7 +2,8 @@
 
 import { useCallback, useEffect, useRef, useState, type KeyboardEvent } from "react";
 import { msg } from "@/lib/git/messages";
-import { applyCommand, freshSession, promptFor, undo as undoSession, type Session } from "@/lib/session";
+import { applyCommand, freshSession, promptFor, showCompletions, undo as undoSession, type Session } from "@/lib/session";
+import { complete } from "@/lib/git/complete";
 import { STARTER_STEPS } from "@/lib/steps";
 import { clearSession, loadSession, saveSession, watchSession } from "@/lib/storage";
 import { ui } from "@/lib/ui-text";
@@ -57,6 +58,10 @@ export function Simulator() {
 
   const run = useCallback((command: string) => setSession((s) => applyCommand(s, command)), []);
   const undo = useCallback(() => setSession(undoSession), []);
+  const listCompletions = useCallback(
+    (text: string, candidates: readonly string[]) => setSession((s) => showCompletions(s, text, candidates)),
+    [],
+  );
 
   const reset = () => {
     clearSession();
@@ -146,6 +151,8 @@ export function Simulator() {
             prompt={promptFor(session.sim)}
             steps={steps}
             onRun={run}
+            complete={(text) => complete(session.sim, text)}
+            onListCompletions={listCompletions}
           />
         </div>
       </main>
