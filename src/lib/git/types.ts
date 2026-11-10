@@ -36,11 +36,15 @@ export type ConflictKind = "both modified" | "both added" | "deleted by us" | "d
  * আমরা index-এ ours রেখে আলাদা তালিকায় চিহ্ন দিই কোনগুলো এখনো মেটানো হয়নি।
  */
 export interface MergeState {
-  /** "merge": `git merge` থেমে আছে; "revert": `git revert` থেমে আছে */
-  readonly kind: "merge" | "revert";
+  /**
+   * "merge": `git merge` থেমে আছে; "revert": `git revert` থেমে আছে;
+   * "stash": `git stash pop/apply`-এ conflict (আসল Git-এ কোনো চলমান কাজ থাকে না, শুধু unmerged ফাইল;
+   * তাই শেষ conflict মিটলেই এই অবস্থা মুছে যায়)
+   */
+  readonly kind: "merge" | "revert" | "stash";
   /** merge-এ: যে commit merge করা হচ্ছে (MERGE_HEAD); revert-এ: যে commit উল্টানো হচ্ছে (REVERT_HEAD) */
   readonly theirs: string;
-  /** merge-এ: যে branch merge করা হচ্ছে; revert-এ: উল্টানো commit-এর id */
+  /** merge-এ: যে branch merge করা হচ্ছে; revert-এ: উল্টানো commit-এর id; stash-এ: "stash@{n}" */
   readonly branch: string;
   /** commit-এর ডিফল্ট মেসেজ (MERGE_MSG) */
   readonly message: string;

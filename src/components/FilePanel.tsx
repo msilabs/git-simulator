@@ -128,11 +128,19 @@ export function FilePanel({ state }: { state: SimState }) {
       {repo?.merge && (
         <div className="mb-3 rounded-xl border border-[#B42318]/30 bg-[#FEF3F2] px-3 py-2 text-sm text-[#7A271A]">
           <strong>
-            {!unmergedCount ? ui.mergeResolvedTitle : repo.merge.kind === "revert" ? ui.revertBannerTitle : ui.mergeBannerTitle}
+            {repo.merge.kind === "stash"
+              ? ui.stashConflictBannerTitle
+              : !unmergedCount
+                ? ui.mergeResolvedTitle
+                : repo.merge.kind === "revert"
+                  ? ui.revertBannerTitle
+                  : ui.mergeBannerTitle}
           </strong>{" "}
           <RichText
             text={
-              repo.merge.kind === "revert"
+              repo.merge.kind === "stash"
+                ? ui.stashConflictBanner(unmergedCount)
+                : repo.merge.kind === "revert"
                 ? unmergedCount
                   ? ui.revertBanner(repo.merge.theirs, unmergedCount)
                   : ui.revertResolved

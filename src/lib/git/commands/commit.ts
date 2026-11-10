@@ -83,9 +83,17 @@ export const commit: CommandHandler = (state, args) => {
 
   const parent = headCommit(repo);
   const joined = messages.map((m) => m.trim()).filter(Boolean).join("\n\n");
+  const unmergedFailure = () => {
+    const unmerged = unmergedPaths(repo);
+    return failure(state, [UNMERGED_ERROR("Committing"), ...unmerged.map((p) => `U\t${p}`)].join("\n"), msg.commitUnmerged(unmerged));
+  };
+  // stash ফেরানোর conflict: কোনো চলমান কাজ নেই, তাই মেটানোর পর সাধারণ commit (`-a` হলে conflict-এর ফাইলসহ)
+  const stashConflict = repo.merge?.kind === "stash";
+  if (stashConflict && !all && !amend) return unmergedFailure();
 
   if (amend) {
     if (!parent) return failure(state, "fatal: You have nothing to amend.", msg.amendNothing);
+    if (repo.merge?.kind === "stash") return unmergedFailure();
     if (repo.merge) {
       return failure(state, `fatal: You are in the middle of a ${repo.merge.kind} -- cannot amend.`, msg.amendInProgress(repo.merge.kind));
     }
@@ -119,12 +127,10 @@ export const commit: CommandHandler = (state, args) => {
   }
 
   // conflict-এ থেমে থাকা merge বা revert শেষ করা
-  if (repo.merge) {
+  if (repo.merge && !stashConflict) {
     const unmerged = unmergedPaths(repo);
     // আসল Git-এর মতো `-a` conflict চলা ফাইলও stage করে, তাই আর আটকায় না (চিহ্নসহ হলেও)।
-    if (unmerged.length && !all) {
-      return failure(state, [UNMERGED_ERROR("Committing"), ...unmerged.map((p) => `U\t${p}`)].join("\n"), msg.commitUnmerged(unmerged));
-    }
+    if (unmerged.length && !all) return unmergedFailure();
     const index = all ? stageTracked(state.workdir, repo.index, unmerged) : repo.index;
     const markers = all ? unmerged.filter((p) => CONFLICT_MARKER.test(get(index, p) ?? "")) : [];
     // আসল Git এখানে MERGE_MSG দিয়ে এডিটর খোলে; সিমুলেটর -m না দিলে সেই মেসেজই নেয়।
@@ -165,7 +171,7 @@ export const commit: CommandHandler = (state, args) => {
     );
   }
 
-  const index = all ? stageTracked(state.workdir, repo.index) : repo.index;
+  const index = all ? stageTracked(state.workdir, repo.index, unmergedPaths(repo)) : repo.index;
   const autoStaged = Object.keys(repo.index).filter((p) => get(index, p) !== repo.index[p]).sort();
 
   // আসল Git আগে দেখে commit করার কিছু আছে কি না, তারপর মেসেজ চায়।
@@ -217,6 +223,7 @@ export const commit: CommandHandler = (state, args) => {
       repo: {
         ...repo,
         index,
+        merge: null,
         commits: { ...repo.commits, [id]: newCommit },
         branches: { ...repo.branches, [repo.head]: id },
       },

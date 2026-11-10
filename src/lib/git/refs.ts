@@ -1,7 +1,7 @@
 /**
  * commit, branch আর ইতিহাস নিয়ে কাজ: HEAD, পূর্বপুরুষ, merge base, commit id, নাম যাচাই।
  */
-import type { Commit, FileMap, Repo } from "./types";
+import type { Commit, ConflictKind, FileMap, MergeState, Repo } from "./types";
 import { get, has } from "./own";
 
 /** HEAD যে commit-কে দেখাচ্ছে (প্রথম commit-এর আগে null)। */
@@ -98,6 +98,16 @@ export function makeCommitId(repo: Repo, seed: string): string {
     const id = (h >>> 4).toString(16).padStart(7, "0").slice(-7);
     if (!repo.commits[id]) return id;
   }
+}
+
+/**
+ * conflict মেটানোর পর নতুন merge অবস্থা। stash-এর conflict-এ আলাদা কোনো চলমান কাজ নেই,
+ * তাই শেষ ফাইল মিটলে অবস্থাটাই মুছে যায়।
+ */
+export function withUnmerged(repo: Repo, unmerged: Readonly<Record<string, ConflictKind>>): MergeState | null {
+  if (!repo.merge) return null;
+  if (repo.merge.kind === "stash" && Object.keys(unmerged).length === 0) return null;
+  return { ...repo.merge, unmerged };
 }
 
 /** merge conflict চলাকালীন এখনো মেটানো হয়নি এমন ফাইলের নাম */

@@ -6,6 +6,8 @@
 
 const list = (items: readonly string[]) => items.join(", ");
 
+type Operation = "merge" | "revert" | "stash";
+
 /** সংখ্যাকে বাংলা অঙ্কে লেখে: 12 → ১২ */
 export const bn = (n: number) => String(n).replace(/[0-9]/g, (d) => "০১২৩৪৫৬৭৮৯"[Number(d)]);
 
@@ -145,6 +147,8 @@ export const msg = {
       : kind === "merge"
         ? "merge চলছে, সব conflict মেটানো হয়েছে। এখন `git commit` দিলে merge commit তৈরি হবে।"
         : "revert চলছে, সব conflict মেটানো হয়েছে। এখন `git revert --continue` দিলে revert commit তৈরি হবে।",
+  statusStashConflict: (unmerged: number) =>
+    `stash ফেরাতে গিয়ে ${bn(unmerged)}টা ফাইলে conflict হয়েছে ("Unmerged paths")। ফাইল ঠিক করে \`git add <file>\` দিন। অন্য বদলগুলো staged আছে।`,
   commitUnmerged: (paths: readonly string[]) =>
     `${list(paths)}-এর conflict এখনো মেটানো হয়নি। ফাইল ঠিক করে \`git add ${paths[0]}\` দিন, তারপর commit করুন।`,
   commitWithMarkers: (paths: readonly string[]) =>
@@ -155,8 +159,10 @@ export const msg = {
   addResolvedAll: "সব conflict মেটানো শেষ। এখন `git commit` দিয়ে merge শেষ করুন।",
   addStillMarkers: (paths: readonly string[]) =>
     `সাবধান: ${list(paths)}-এ এখনো <<<<<<< বা >>>>>>> চিহ্ন আছে। Git আপত্তি করবে না, কিন্তু সাধারণত এগুলো মুছে ফেলতে হয়।`,
-  switchMerging: (kind: "merge" | "revert") =>
-    kind === "merge"
+  switchMerging: (kind: Operation) =>
+    kind === "stash"
+      ? "stash ফেরানোর conflict মেটানো বাকি থাকলে অন্য branch-এ যাওয়া যায় না। আগে ফাইল ঠিক করে `git add`, অথবা `git restore --staged <file>`।"
+      : kind === "merge"
       ? "merge চলাকালীন branch বদলানো যায় না। আগে conflict মিটিয়ে `git commit` দিন, অথবা `git merge --abort`।"
       : "revert চলাকালীন branch বদলানো যায় না। আগে conflict মিটিয়ে `git revert --continue` দিন, অথবা `git revert --abort`।",
 
@@ -175,12 +181,14 @@ export const msg = {
   restoreNoMatch: (path: string) =>
     `${path} Git চেনে না (untracked বা নেই), তাই ফেরানোর মতো কোনো আগের অবস্থা নেই।`,
   restoreUnmerged: (path: string) =>
-    `${path}-এ conflict চলছে। আগে ফাইল ঠিক করে \`git add ${path}\` দিন, অথবা পুরো merge বাতিল করতে \`git merge --abort\`।`,
+    `${path}-এ conflict চলছে, তাই শুধু ফাইল ফেরানো যায় না। ফাইল ঠিক করে \`git add ${path}\` দিন, অথবা \`git restore --staged ${path}\` দিয়ে শেষ commit-এর সংস্করণে মিটিয়ে নিন।`,
   restoreWorktree: (paths: readonly string[]) =>
     `${list(paths)} staging area-র অবস্থায় ফিরে গেল; commit না করা বদল মুছে গেল। সাবধান: আসল Git-এ এভাবে মোছা বদল আর ফেরত পাওয়া যায় না।`,
   restoreStaged: (paths: readonly string[]) =>
     `${list(paths)} staging area থেকে নামানো হলো (unstage)। ফাইলের লেখা বদলায়নি, শুধু পরের commit-এ আর যাবে না।`,
   restoreNothing: "ফেরানোর মতো কিছু নেই, সব আগে থেকেই মিলে আছে।",
+  restoreResolved: (paths: readonly string[]) =>
+    `${list(paths)}-এর conflict মিটল: staging area-তে শেষ commit-এর সংস্করণ বসল। ফাইলে এখনো conflict চিহ্নসহ লেখা আছে; চাইলে ঠিক করে \`git add\`।`,
 
   /* ---------- branch -d / -m ---------- */
   branchDeleteMissing: "কোন branch মুছবেন তার নাম দিন, যেমন `git branch -d feature`।",
@@ -215,7 +223,7 @@ export const msg = {
 
   /* ---------- commit --amend ---------- */
   amendNothing: "এখনো কোনো commit নেই, তাই বদলানোর (amend) মতো কিছু নেই। আগে একটা commit করুন।",
-  amendInProgress: (kind: "merge" | "revert") =>
+  amendInProgress: (kind: Exclude<Operation, "stash">) =>
     `${kind} চলাকালীন amend করা যায় না। আগে \`git commit\` দিয়ে ${kind} শেষ করুন, অথবা \`git ${kind} --abort\`।`,
   commitAmended: (oldId: string, newId: string, branch: string) =>
     `শেষ commit ${oldId}-এর জায়গায় নতুন commit ${newId} বসল, ${branch} এখন এটাকে দেখাচ্ছে। id বদলাল, কারণ Git-এ commit বদলানো যায় না, শুধু নতুন বানানো যায়। সাবধান: commit আগে push করা থাকলে amend করবেন না, অন্যদের ইতিহাসের সাথে মিলবে না।`,
@@ -234,7 +242,8 @@ export const msg = {
     `সাবধান: ${list(paths)}-এর commit না করা বদল মুছে গেল। আসল Git-এ এগুলো আর ফেরত পাওয়া যায় না (এখানে ↶ undo আছে)।`,
   resetLeftBehind: (oldId: string) =>
     `আগের commit ${oldId} মুছে যায়নি, শুধু এখন কোনো branch থেকে দেখা যায় না। ফিরতে চাইলে \`git reset --hard ${oldId}\`। (আসল Git-এ \`git reflog\` দিয়ে এমন id খুঁজে পাওয়া যায়।)`,
-  resetMergeCleared: (kind: "merge" | "revert") => `চলমান ${kind}-ও বাতিল হলো।`,
+  resetMergeCleared: (kind: Operation) =>
+    kind === "stash" ? "stash ফেরানোর conflict-ও মুছে গেল (stash-এর তালিকায় সেটা এখনো আছে)।" : `চলমান ${kind}-ও বাতিল হলো।`,
   resetNothing: "সব আগে থেকেই ওই অবস্থায় আছে, কিছু বদলায়নি।",
   resetPaths: (paths: readonly string[]) =>
     `${list(paths)} staging area থেকে নামানো হলো (unstage), \`git restore --staged\`-এর মতো। ফাইলের লেখা বদলায়নি।`,
@@ -255,10 +264,12 @@ export const msg = {
   revertNotInProgress: "এখন কোনো revert চলছে না।",
   revertAborted: "revert বাতিল হলো। সব ফাইল revert শুরুর আগের অবস্থায় ফিরে গেল।",
   revertSkipped: "এই commit উল্টানো বাদ দেওয়া হলো; ফাইলগুলো আগের অবস্থায় ফিরে গেল।",
-  revertBusy: (kind: "merge" | "revert") =>
+  revertBusy: (kind: Operation) =>
     kind === "merge"
       ? "merge এখনো শেষ হয়নি। আগে `git commit` দিয়ে merge শেষ করুন, অথবা `git merge --abort`।"
-      : "আগের revert এখনো শেষ হয়নি। আগে `git revert --continue` বা `git revert --abort` দিন।",
+      : kind === "stash"
+        ? "stash ফেরানোর conflict এখনো মেটানো হয়নি। আগে ফাইল ঠিক করে `git add` দিন।"
+        : "আগের revert এখনো শেষ হয়নি। আগে `git revert --continue` বা `git revert --abort` দিন।",
   revertMissingArg: "কোন commit উল্টাবেন তা বলুন, যেমন `git revert HEAD` (শেষ commit) বা `git revert <commit-id>`।",
   revertTooMany: "সিমুলেটরে একবারে একটা commit-ই revert করা যায়।",
   revertBadRevision: (rev: string) =>
@@ -287,8 +298,8 @@ export const msg = {
   stashCleared: "stash-এর সব অবস্থা মুছে গেল।",
   stashBlocked: (paths: readonly string[]) =>
     `stash ফেরানো আটকে গেল: ${list(paths)}-এ এখন commit না করা বদল আছে, ফেরালে সেগুলো মুছে যেত। আগে commit করুন, বা আবার \`git stash\` দিন। stash যেমন ছিল আছে।`,
-  stashConflict: (paths: readonly string[], pop: boolean) =>
-    `stash-এর বদল ${list(paths)}-এ এখনকার বদলের সাথে একই জায়গায় পড়ছে (conflict)। আসল Git এখানে ফাইলে conflict চিহ্ন বসাত; সিমুলেটর কিছু না বদলে থামল। আগে commit বা \`git restore\` দিয়ে ফাইল পরিষ্কার করে আবার চেষ্টা করুন।${pop ? " stash মুছে যায়নি।" : ""}`,
+  stashConflict: (paths: readonly string[], i: number, pop: boolean) =>
+    `stash@{${bn(i)}}-এর বদল ${list(paths)}-এ এখনকার লেখার সাথে একই জায়গায় পড়েছে (conflict)। ফাইলে চিহ্ন বসেছে: <<<<<<< Updated upstream-এর নিচে এখনকার লেখা, ======= এর পরে stash-এর লেখা। ঠিক করে \`git add ${paths[0]}\` দিন। অন্য বদলগুলো staged হয়ে আছে।${pop ? " conflict হয়েছে বলে stash মুছে যায়নি; কাজ শেষে \`git stash drop\`।" : ""}`,
 
   /* ---------- rm (সহায়ক) ---------- */
   rmMissingArg: "কোন ফাইল মুছবেন তার নাম দিন, যেমন `rm notes.txt`।",

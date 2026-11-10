@@ -61,7 +61,8 @@ export function getStatus(state: SimState, repo: Repo): StatusInfo {
     staged,
     unstaged,
     untracked,
-    operation: repo.merge?.kind ?? null,
+    // stash ফেরানোর conflict-এ আসল Git কোনো চলমান কাজ দেখায় না, শুধু Unmerged paths
+    operation: repo.merge && repo.merge.kind !== "stash" ? repo.merge.kind : null,
     reverting: repo.merge?.kind === "revert" ? repo.merge.theirs : null,
     unmerged,
   };
@@ -161,6 +162,7 @@ export const status: CommandHandler = (state) => {
   const info = getStatus(state, repo);
   const { staged, unstaged, untracked } = info;
   if (info.operation) return success(state, formatStatus(info), msg.statusMerging(info.operation, info.unmerged.length));
+  if (info.unmerged.length) return success(state, formatStatus(info), msg.statusStashConflict(info.unmerged.length));
   const explanation =
     staged.length + unstaged.length + untracked.length === 0
       ? msg.statusClean(info.branch)

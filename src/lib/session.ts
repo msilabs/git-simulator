@@ -176,7 +176,7 @@ export function isValidSimState(x: unknown): x is SimState {
   const merge = repo.merge;
   if (merge !== undefined && merge !== null) {
     if (!isObject(merge) || typeof merge.theirs !== "string" || !has(commits, merge.theirs)) return false;
-    if (merge.kind !== undefined && merge.kind !== "merge" && merge.kind !== "revert") return false;
+    if (merge.kind !== undefined && merge.kind !== "merge" && merge.kind !== "revert" && merge.kind !== "stash") return false;
     if (typeof merge.branch !== "string" || typeof merge.message !== "string") return false;
     if (!isFileMap(merge.unmerged) || !isStringArray(merge.touched)) return false;
   }

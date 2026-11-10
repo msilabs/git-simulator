@@ -1,4 +1,4 @@
-import type { CommandHandler, FileMap, SimState, StashEntry } from "../types";
+import type { CommandHandler, FileMap, MergeState, SimState, StashEntry } from "../types";
 import {
   allPaths,
   failure,
@@ -15,7 +15,7 @@ import {
 } from "../helpers";
 import { msg } from "../messages";
 import { formatStatus, getStatus } from "./status";
-import { threeWay } from "./merge";
+import { conflictLines, threeWay } from "./merge";
 
 type Result = ReturnType<CommandHandler>;
 
@@ -113,27 +113,52 @@ const dropped = (i: number, entry: StashEntry) => `Dropped refs/stash@{${i}} (${
  * `git stash apply` / `git stash pop`
  * stash-এর বদল বর্তমান ফাইলে মেলায় (three-way: stash-এর সময়ের commit, এখনকার অবস্থা, stash)।
  * আসল Git-এর মতো staged বদল unstaged হয়ে ফেরে, শুধু stash-এ নতুন যোগ করা ফাইল আবার staged হয়।
- * সরলীকরণ: মেলাতে গিয়ে conflict হলে আসল Git চিহ্ন বসায়; সিমুলেটর কিছু না বদলে থামে।
+ * একই জায়গা দুই দিকে বদলালে conflict: ফাইলে "Updated upstream" / "Stashed changes" চিহ্ন বসে,
+ * বাকি মেলানো বদল staged থাকে, আর pop হলেও stash মোছে না (আসল Git-এর মতো)।
  */
 function apply(state: SimState, args: readonly string[], pop: boolean): Result {
   const repo = state.repo!;
   const picked = pickEntry(state, args);
   if ("error" in picked) return picked.error;
+  const unmerged = unmergedPaths(repo);
+  if (unmerged.length) {
+    return failure(state, ["error: could not write index", ...unmerged.map((p) => `${p}: needs merge`)].join("\n"), msg.stashUnmerged);
+  }
   if (repo.merge) return failure(state, `error: unsupported in simulator: git stash ${pop ? "pop" : "apply"} during a merge`, msg.stashDuringMerge);
 
   const entry = repo.stash[picked.index];
   const base = repo.commits[entry.base].files;
-  const { result, conflicts } = threeWay(base, repo.index, stashedTree(entry), "Stashed changes");
-  if (conflicts.length) {
-    const paths = conflicts.map((c) => c.path);
-    return failure(state, `error: unsupported in simulator: conflict in ${paths.join(", ")}`, msg.stashConflict(paths, pop));
-  }
+  const { result, conflicts, autoMerged } = threeWay(base, repo.index, stashedTree(entry), "Stashed changes", "Updated upstream");
+  let target: FileMap = result;
+  for (const c of conflicts) target = setFile(target, c.path, c.work);
 
-  const moved = moveTree(state.workdir, repo.index, repo.index, result);
+  const moved = moveTree(state.workdir, repo.index, repo.index, target);
   if (!moved.ok) {
     const status = formatStatus(getStatus(state, repo), pop);
     const kept = pop ? "\nThe stash entry is kept in case you need it again." : "";
     return failure(state, `${overwrittenError(moved.paths, moved.reason, "merge")}\n${status}${kept}`, msg.stashBlocked(moved.paths));
+  }
+
+  if (conflicts.length) {
+    // মেলানো বদল staged থাকে; conflict-এর ফাইলের index-এ আমাদের (এখনকার) সংস্করণ
+    let index: FileMap = result;
+    for (const c of conflicts) index = setFile(index, c.path, get(repo.index, c.path));
+    const conflictState: MergeState = {
+      kind: "stash",
+      theirs: headCommit(repo)!.id,
+      branch: `stash@{${picked.index}}`,
+      message: "",
+      unmerged: Object.fromEntries(conflicts.map((c) => [c.path, c.kind])),
+      touched: allPaths(repo.index, target).filter((p) => get(repo.index, p) !== get(target, p)),
+    };
+    const next: SimState = { ...state, workdir: moved.workdir, repo: { ...repo, index, merge: conflictState } };
+    const output = [
+      ...autoMerged.map((p) => `Auto-merging ${p}`),
+      ...conflictLines(conflicts, "Stashed changes", "Updated upstream"),
+      formatStatus(getStatus(next, next.repo!), pop),
+      ...(pop ? ["The stash entry is kept in case you need it again."] : []),
+    ].join("\n");
+    return failure(next, output, msg.stashConflict(conflicts.map((c) => c.path), picked.index, pop));
   }
 
   let index = repo.index;

@@ -215,6 +215,16 @@ describe("merge conflicts", () => {
     expect(exec(["git commit"], resolved.state).ok).toBe(true);
   });
 
+  it("git restore --staged settles a conflict with our version, like real Git", () => {
+    const r = exec([...CONFLICTING, "git merge feature", "git restore --staged index.html"]);
+    expect(r.ok).toBe(true);
+    const repo = repoOf(r.state);
+    expect(repo.merge?.unmerged).toEqual({});
+    expect(repo.merge).not.toBeNull(); // merge চলছে, এখন commit করা যায়
+    expect(exec(["git status"], r.state).output).toContain("All conflicts fixed but you are still merging.");
+    expect(r.explanation).toContain("conflict মিটল");
+  });
+
   it("shows the conflicted file in git diff", () => {
     const r = exec([...CONFLICTING, "git merge feature", "git diff"]);
     expect(r.output).toContain("+<<<<<<< HEAD");

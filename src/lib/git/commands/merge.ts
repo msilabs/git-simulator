@@ -34,7 +34,7 @@ export interface Conflict {
  * base থেকে শুধু এক দিক বদলালে সেই বদল; দুই দিক একইভাবে বদলালে সমস্যা নেই;
  * দুই দিক একই ফাইল বদলালে লাইন ধরে মেলানো (merge3), তাতেও না মিললে conflict।
  */
-export function threeWay(base: FileMap, ours: FileMap, theirs: FileMap, theirsLabel: string) {
+export function threeWay(base: FileMap, ours: FileMap, theirs: FileMap, theirsLabel: string, oursLabel = "HEAD") {
   const result: Record<string, string> = {};
   const conflicts: Conflict[] = [];
   const autoMerged: string[] = [];
@@ -47,7 +47,7 @@ export function threeWay(base: FileMap, ours: FileMap, theirs: FileMap, theirsLa
     } else if (b === o) {
       if (t !== undefined) result[p] = t;
     } else if (o !== undefined && t !== undefined) {
-      const merged = merge3(b ?? "", o, t, "HEAD", theirsLabel);
+      const merged = merge3(b ?? "", o, t, oursLabel, theirsLabel);
       autoMerged.push(p);
       if (merged.conflict) conflicts.push({ path: p, kind: b === undefined ? "both added" : "both modified", work: merged.content });
       else result[p] = merged.content;
@@ -62,12 +62,12 @@ export function threeWay(base: FileMap, ours: FileMap, theirs: FileMap, theirsLa
 }
 
 /** merge-এর আউটপুটের "Auto-merging"-এর পরের CONFLICT লাইনগুলো, আসল Git-এর লেখায়। */
-export function conflictLines(conflicts: readonly Conflict[], theirsLabel: string): string[] {
+export function conflictLines(conflicts: readonly Conflict[], theirsLabel: string, oursLabel = "HEAD"): string[] {
   return conflicts.map((c) =>
     c.kind === "deleted by us"
-      ? `CONFLICT (modify/delete): ${c.path} deleted in HEAD and modified in ${theirsLabel}.  Version ${theirsLabel} of ${c.path} left in tree.`
+      ? `CONFLICT (modify/delete): ${c.path} deleted in ${oursLabel} and modified in ${theirsLabel}.  Version ${theirsLabel} of ${c.path} left in tree.`
       : c.kind === "deleted by them"
-        ? `CONFLICT (modify/delete): ${c.path} deleted in ${theirsLabel} and modified in HEAD.  Version HEAD of ${c.path} left in tree.`
+        ? `CONFLICT (modify/delete): ${c.path} deleted in ${theirsLabel} and modified in ${oursLabel}.  Version ${oursLabel} of ${c.path} left in tree.`
         : `CONFLICT (${c.kind === "both added" ? "add/add" : "content"}): Merge conflict in ${c.path}`,
   );
 }

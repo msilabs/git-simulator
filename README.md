@@ -47,7 +47,7 @@ The **↶ undo** button in the top bar steps back one command at a time. Real Gi
 
 ### Merge conflicts
 
-Merges are line-based (diff3). If the two branches changed different lines, Git merges them automatically. If they changed the same lines, the merge stops, writes Git-style conflict markers into the file, and `git status` lists "Unmerged paths". You resolve it the real way: `edit` the file, then `git add` it, then `git commit`. Modify/delete and add/add conflicts are supported too. To resolve a conflict by deleting the file, use `git rm <file>`.
+Merges are line-based (diff3). If the two branches changed different lines, Git merges them automatically. If they changed the same lines, the merge stops, writes Git-style conflict markers into the file, and `git status` lists "Unmerged paths". You resolve it the real way: `edit` the file, then `git add` it, then `git commit`. `git restore --staged <file>` settles a conflicted file with our version. Modify/delete and add/add conflicts are supported too. To resolve a conflict by deleting the file, use `git rm <file>`.
 
 Other Git commands are recognised as "not in the simulator yet".
 
@@ -68,7 +68,7 @@ Other Git commands are recognised as "not in the simulator yet".
 - There is no detached HEAD, and `git checkout <file>` is not supported.
 - Revisions understand `HEAD`, branch names, commit ids (or a unique prefix of 4+ characters), `~n`, `^` and `^2`. There is no reflog, but commits left behind by `reset` or `--amend` can still be reached by id.
 - `git commit --amend` and `git revert` print no `Date` line. `git revert` takes one commit at a time and cannot revert merge commits (`-m` is not supported).
-- `git stash` keeps entries in a separate list, not as commits, so they do not appear in the graph. Untracked files are never stashed (`-u` is not supported). If applying a stash would conflict, the simulator stops without changing anything; real Git writes conflict markers.
+- `git stash` keeps entries in a separate list, not as commits, so they do not appear in the graph. Untracked files are never stashed (`-u` is not supported). A conflicting `stash pop`/`apply` writes "Updated upstream" / "Stashed changes" markers like real Git and keeps the entry.
 
 Like real Git, `switch`/`checkout` carry uncommitted changes along when the file is identical on both branches. They refuse only when your changes would be overwritten.
 

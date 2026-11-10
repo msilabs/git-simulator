@@ -81,7 +81,17 @@ function makeHandler(verb: Verb): CommandHandler {
     const repo = state.repo!;
     // সরলীকরণ: আসল `git checkout` সব conflict মেটানোর পর merge চলাকালীনও branch বদলাতে দেয়;
     // সিমুলেটর switch আর checkout দুটোকেই merge শেষ বা বাতিল না হওয়া পর্যন্ত আটকায়।
-    if (repo.merge && args.length > 0) {
+    // stash ফেরানোর conflict-এ চলমান কাজ নেই: নতুন branch বানানো যায় (একই commit-এ থাকে), অন্য branch-এ যাওয়া যায় না
+    const creating = createFlags.includes(args[0]);
+    if (repo.merge?.kind === "stash" && args.length > 0 && !creating) {
+      const unmerged = unmergedPaths(repo);
+      return failure(
+        state,
+        `error: you need to resolve your current index first\n${unmerged.map((p) => `${p}: needs merge`).join("\n")}`,
+        msg.switchMerging("stash"),
+      );
+    }
+    if (repo.merge && repo.merge.kind !== "stash" && args.length > 0) {
       const unmerged = unmergedPaths(repo);
       return failure(
         state,

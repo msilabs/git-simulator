@@ -1,5 +1,5 @@
 import type { CommandHandler, ConflictKind, FileMap } from "../types";
-import { allPaths, failure, get, has, headTree, setFile, success } from "../helpers";
+import { allPaths, failure, get, has, headTree, setFile, success, withUnmerged } from "../helpers";
 import { msg } from "../messages";
 
 /** আসল `git rm`-এর এরর: প্রতিটা দলের জন্য আলাদা "error:" লাইন। */
@@ -120,6 +120,6 @@ export const gitRm: CommandHandler = (state, args) => {
   ]
     .filter(Boolean)
     .join("\n");
-  const merge = repo.merge ? { ...repo.merge, unmerged } : null;
+  const merge = withUnmerged(repo, unmerged);
   return success({ ...state, workdir, repo: { ...repo, index, merge } }, output, explanation);
 };

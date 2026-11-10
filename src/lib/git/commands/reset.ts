@@ -10,6 +10,7 @@ import {
   sameFiles,
   setFile,
   success,
+  withUnmerged,
 } from "../helpers";
 import { msg } from "../messages";
 
@@ -43,7 +44,7 @@ function resetPaths(state: SimState, rev: string | null, revId: string | null, p
     delete unmerged[p];
   }
   const resolved = Object.keys(unmerged).length !== Object.keys(repo.merge?.unmerged ?? {}).length;
-  const merge = repo.merge ? { ...repo.merge, unmerged } : null;
+  const merge = withUnmerged(repo, unmerged);
   return success(
     sameFiles(index, repo.index) && !resolved ? state : { ...state, repo: { ...repo, index, merge } },
     unstagedAfterReset(state.workdir, index),

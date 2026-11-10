@@ -88,12 +88,81 @@ describe("git stash", () => {
     expect(r.state.workdir).toEqual({ a: "a3", b: "B" });
   });
 
-  it("stops without changing anything when the stash would conflict (simplification)", () => {
-    const s = state([...BASE, 'edit a "X"', "git stash", 'edit a "Y"', 'git commit -am "y"']);
+  it("writes conflict markers like real Git, keeps the clean changes staged and keeps the entry", () => {
+    const s = state([
+      "git init",
+      'edit a "a"',
+      'edit b "b"',
+      "git add .",
+      'git commit -m "first"',
+      'edit a "X"',
+      'edit b "B2"',
+      'edit new "n"',
+      "git add new",
+      "git stash",
+      'edit a "Y"',
+      'git commit -am "y"',
+    ]);
     const r = runCommand(s, "git stash pop");
     expect(r.ok).toBe(false);
-    expect(r.state).toBe(s);
-    expect(r.explanation).toContain("stash মুছে যায়নি");
+    expect(r.output).toBe(
+      [
+        "Auto-merging a",
+        "CONFLICT (content): Merge conflict in a",
+        "On branch main",
+        "Changes to be committed:",
+        '  (use "git restore --staged <file>..." to unstage)',
+        "\tmodified:   b",
+        "\tnew file:   new",
+        "",
+        "Unmerged paths:",
+        '  (use "git restore --staged <file>..." to unstage)',
+        '  (use "git add <file>..." to mark resolution)',
+        "\tboth modified:   a",
+        "",
+        "The stash entry is kept in case you need it again.",
+      ].join("\n"),
+    );
+    expect(r.state.workdir.a).toBe("<<<<<<< Updated upstream\nY\n=======\nX\n>>>>>>> Stashed changes");
+    expect(repoOf(r.state).stash).toHaveLength(1);
+
+    // মেটানোর আগে: commit, amend, অন্য branch, আবার stash আটকায়; নতুন branch বানানো যায়
+    expect(runCommand(r.state, 'git commit -m "x"').output).toContain("U\ta");
+    expect(runCommand(r.state, 'git commit --amend -m "x"').output).toContain("U\ta");
+    expect(runCommand(r.state, "git switch main").output).toBe("error: you need to resolve your current index first\na: needs merge");
+    expect(runCommand(r.state, "git switch -c z").ok).toBe(true);
+    expect(runCommand(r.state, "git stash apply").output).toBe("error: could not write index\na: needs merge");
+    expect(runCommand(r.state, "git merge --abort").ok).toBe(false);
+
+    // git add দিয়ে মেটালে চলমান কোনো কাজ থাকে না, পরে সাধারণ commit
+    const fixed = exec(['edit a "fixed"', "git add a"], r.state);
+    expect(repoOf(fixed.state).merge).toBeNull();
+    expect(runCommand(fixed.state, "git status").output.startsWith("On branch main\nChanges to be committed:")).toBe(true);
+    const done = runCommand(fixed.state, 'git commit -m "done"');
+    expect(done.ok).toBe(true);
+    expect(repoOf(done.state).commits[headId(done.state)].parents).toHaveLength(1);
+  });
+
+  it("apply with a conflict can be settled with restore --staged or committed with -a", () => {
+    const s = state([
+      "git init",
+      'edit a "a"',
+      "git add .",
+      'git commit -m "first"',
+      'edit a "X"',
+      "git stash",
+      'edit a "Y"',
+      'git commit -am "y"',
+      "git stash apply",
+    ]);
+    expect(runCommand(s, "git restore a").output).toBe("error: path 'a' is unmerged");
+    const restored = runCommand(s, "git restore --staged a");
+    expect(restored.ok).toBe(true);
+    expect(repoOf(restored.state).merge).toBeNull();
+    expect(restored.state.workdir.a).toContain("<<<<<<< Updated upstream");
+    const all = runCommand(s, 'git commit -am "all"');
+    expect(all.ok).toBe(true);
+    expect(repoOf(all.state).merge).toBeNull();
   });
 
   it("handles an empty list and bad references", () => {

@@ -1,12 +1,14 @@
 import type { CommandHandler, FileMap } from "../types";
-import { allPaths, failure, get, has, headTree, setFile, success, unmergedPaths } from "../helpers";
+import type { ConflictKind } from "../types";
+import { allPaths, failure, get, has, headTree, setFile, success, unmergedPaths, withUnmerged } from "../helpers";
 import { msg } from "../messages";
 
 /**
  * `git restore <file>...`: ফাইলকে staging area-র অবস্থায় ফেরায় (commit না করা বদল বাদ)
  * `git restore --staged <file>...`: staging area-কে HEAD-এর অবস্থায় ফেরায় (unstage)
  * `--staged --worktree` একসাথে দিলে দুটোই, HEAD থেকে।
- * সরলীকরণ: `--source`, `-p` নেই; conflict চলা ফাইলে restore আটকানো হয়।
+ * conflict চলা ফাইলে `--staged` দিলে ফাইলটা HEAD-এর অবস্থায় staged হয়ে মিটে যায়; শুধু `git restore <file>` আটকায়।
+ * সরলীকরণ: `--source`, `-p` নেই।
  */
 export const restore: CommandHandler = (state, args) => {
   const repo = state.repo!;
@@ -39,8 +41,12 @@ export const restore: CommandHandler = (state, args) => {
     }
     targets = paths;
   }
-  const blocked = targets.find((p) => unmerged.has(p));
+  // conflict চলা ফাইল: `--staged` দিলে HEAD-এর অবস্থায় staged হয়ে মিটে যায়; শুধু ফাইল ফেরানো যায় না (আসল Git-এর মতো)
+  const blocked = staged ? undefined : targets.find((p) => unmerged.has(p));
   if (blocked) return failure(state, `error: path '${blocked}' is unmerged`, msg.restoreUnmerged(blocked));
+  const stillUnmerged: Record<string, ConflictKind> = { ...(repo.merge?.unmerged ?? {}) };
+  const resolved = staged ? targets.filter((p) => unmerged.has(p)) : [];
+  for (const p of resolved) delete stillUnmerged[p];
 
   let index: FileMap = repo.index;
   let workdir: FileMap = state.workdir;
@@ -61,9 +67,14 @@ export const restore: CommandHandler = (state, args) => {
     }
   }
 
-  if (!unstaged.length && !discarded.length) return success(state, "", msg.restoreNothing);
-  const explanation = [unstaged.length ? msg.restoreStaged(unstaged) : "", discarded.length ? msg.restoreWorktree(discarded) : ""]
+  if (!unstaged.length && !discarded.length && !resolved.length) return success(state, "", msg.restoreNothing);
+  const explanation = [
+    resolved.length ? msg.restoreResolved(resolved) : "",
+    unstaged.length ? msg.restoreStaged(unstaged) : "",
+    discarded.length ? msg.restoreWorktree(discarded) : "",
+  ]
     .filter(Boolean)
     .join("\n");
-  return success({ ...state, workdir, repo: { ...repo, index } }, "", explanation);
+  const merge = resolved.length ? withUnmerged(repo, stillUnmerged) : repo.merge;
+  return success({ ...state, workdir, repo: { ...repo, index, merge } }, "", explanation);
 };

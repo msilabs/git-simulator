@@ -65,6 +65,9 @@ export const ui = {
   revertBanner: (id: string, count: number) =>
     `commit ${id} উল্টাতে গিয়ে ${bn(count)}টা ফাইলে conflict। ফাইল ঠিক করে \`git add\`, তারপর \`git revert --continue\`। বাতিল: \`git revert --abort\``,
   revertResolved: "revert শেষ করতে `git revert --continue` দিন।",
+  stashConflictBannerTitle: "stash ফেরাতে conflict:",
+  stashConflictBanner: (count: number) =>
+    `${bn(count)}টা ফাইলে stash-এর বদল আর এখনকার লেখা একই জায়গায় পড়েছে। ফাইল ঠিক করে \`git add\` দিন; অন্য বদল staged আছে।`,
   stashNote: (count: number) => `stash-এ ${bn(count)}টা অবস্থা সরিয়ে রাখা আছে। দেখতে \`git stash list\`, ফেরাতে \`git stash pop\`।`,
 
   /* গ্রাফ */

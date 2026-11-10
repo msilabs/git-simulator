@@ -5,6 +5,8 @@ All notable changes to this project are documented here. The format follows [Kee
 ## [Unreleased]
 
 ### Added
+- A conflicting `git stash pop` / `apply` now writes conflict markers like real Git, keeps the cleanly merged changes staged and keeps the stash entry.
+- `git restore --staged <file>` settles a conflicted file with our version (merge, revert or stash), like real Git.
 - `git log --graph` (with `--oneline`), `--all` and `-n <N>` / `-<N>`. The graph follows real Git's drawing rules, checked line by line against git 2.56.
 - `git show [<commit>]`, and simulator helpers `echo` (with `>` and `>>`) and `pwd`.
 - Tab completion in the terminal, like a real shell: commands, git subcommands, files (only changed ones for `git add`), branches, stash entries and options. A second Tab lists all matches.

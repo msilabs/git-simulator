@@ -1,5 +1,5 @@
 import type { CommandHandler, ConflictKind, FileMap } from "../types";
-import { allPaths, failure, get, has, sameFiles, setFile, success } from "../helpers";
+import { allPaths, failure, get, has, sameFiles, setFile, success, withUnmerged } from "../helpers";
 import { msg } from "../messages";
 
 /** ফাইলে এখনো merge conflict-এর <<<<<<< বা >>>>>>> চিহ্ন আছে কি না */
@@ -63,7 +63,7 @@ export const add: CommandHandler = (state, args) => {
       .filter(Boolean)
       .join("\n");
     return success(
-      { ...state, repo: { ...repo, index, merge: { ...repo.merge!, unmerged } } },
+      { ...state, repo: { ...repo, index, merge: withUnmerged(repo, unmerged) } },
       "",
       explanation,
     );
