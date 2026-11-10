@@ -3,6 +3,7 @@ import {
   allPaths,
   diffstatLines,
   failure,
+  get,
   headCommit,
   isAncestor,
   makeCommitId,
@@ -38,9 +39,9 @@ function threeWay(base: FileMap, ours: FileMap, theirs: FileMap, theirsLabel: st
   const conflicts: Conflict[] = [];
   const autoMerged: string[] = [];
   for (const p of allPaths(base, ours, theirs)) {
-    const b = base[p];
-    const o = ours[p];
-    const t = theirs[p];
+    const b = get(base, p);
+    const o = get(ours, p);
+    const t = get(theirs, p);
     if (o === t || b === t) {
       if (o !== undefined) result[p] = o;
     } else if (b === o) {
@@ -70,7 +71,7 @@ function abort(state: SimState): ReturnType<CommandHandler> {
   let workdir = state.workdir;
   // আসল Git (`reset --merge`)-এর মতো: index পুরোটা HEAD-এ ফেরে; working directory-তে শুধু
   // merge-এর ছোঁয়া ফাইলগুলো ফেরে, বাকি commit না করা বদল থেকে যায় (staged থাকলে unstaged হয়)।
-  for (const p of repo.merge.touched) workdir = setFile(workdir, p, head[p]);
+  for (const p of repo.merge.touched) workdir = setFile(workdir, p, get(head, p));
   return success({ ...state, workdir, repo: { ...repo, index: head, merge: null } }, "", msg.mergeAborted);
 }
 
@@ -104,7 +105,7 @@ export const merge: CommandHandler = (state, args) => {
   if (args.length > 1) return failure(state, `error: unsupported in simulator: ${args[1]}`, msg.mergeTooMany);
 
   const name = args[0];
-  const theirsId = repo.branches[name];
+  const theirsId = get(repo.branches, name);
   if (!theirsId) return failure(state, `merge: ${name} - not something we can merge`, msg.mergeNotFound(name));
   const theirs = repo.commits[theirsId];
   const ours = headCommit(repo);
@@ -148,7 +149,7 @@ export const merge: CommandHandler = (state, args) => {
 
   // সত্যিকারের merge।
   // আসল Git (ort) সত্যিকারের merge-এর আগে চায় index যেন HEAD-এর সাথে মেলে।
-  const stagedPaths = allPaths(repo.index, ours.files).filter((p) => repo.index[p] !== ours.files[p]);
+  const stagedPaths = allPaths(repo.index, ours.files).filter((p) => get(repo.index, p) !== get(ours.files, p));
   if (stagedPaths.length) {
     return failure(state, overwrittenError(stagedPaths, "local-changes", "merge"), msg.mergeBlocked(stagedPaths));
   }
@@ -178,13 +179,13 @@ export const merge: CommandHandler = (state, args) => {
   if (conflicts.length) {
     // conflict ফাইলের index-এ আমাদের সংস্করণই থাকে; বাকি মেলানো ফাইল staged
     let index = moved.index;
-    for (const c of conflicts) index = setFile(index, c.path, ours.files[c.path]);
+    for (const c of conflicts) index = setFile(index, c.path, get(ours.files, c.path));
     const mergeState: MergeState = {
       theirs: theirsId,
       branch: name,
       message,
       unmerged: Object.fromEntries(conflicts.map((c) => [c.path, c.kind])),
-      touched: allPaths(ours.files, target).filter((p) => ours.files[p] !== target[p]),
+      touched: allPaths(ours.files, target).filter((p) => get(ours.files, p) !== get(target, p)),
     };
     const lines = [
       ...autoLines,

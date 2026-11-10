@@ -2,10 +2,11 @@
  * commit, branch আর ইতিহাস নিয়ে কাজ: HEAD, পূর্বপুরুষ, merge base, commit id, নাম যাচাই।
  */
 import type { Commit, FileMap, Repo } from "./types";
+import { get } from "./own";
 
 /** HEAD যে commit-কে দেখাচ্ছে (প্রথম commit-এর আগে null)। */
 export function headCommit(repo: Repo): Commit | null {
-  const id = repo.branches[repo.head];
+  const id = get(repo.branches, repo.head);
   return id ? repo.commits[id] : null;
 }
 
@@ -79,9 +80,10 @@ export function unmergedPaths(repo: Repo): string[] {
 /**
  * আসল `git check-ref-format`-এর মূল নিয়মগুলো। সব নিয়ম নয়, তবে নতুনদের
  * সাধারণ ভুলগুলো ধরে।
+ * সরলীকরণ: আসল Git "__proto__" নামও মানে; সিমুলেটরে JavaScript object-এ এই নাম রাখা যায় না।
  */
 export function isValidBranchName(name: string): boolean {
-  if (!name || name.startsWith("-") || name.startsWith("/") || name.endsWith("/")) return false;
+  if (!name || name === "__proto__" || name.startsWith("-") || name.startsWith("/") || name.endsWith("/")) return false;
   if (name.endsWith(".") || name.endsWith(".lock") || name === "@" || name === "HEAD") return false;
   if (name.includes("..") || name.includes("//") || name.includes("@{")) return false;
   if (/[\s~^:?*[\\\x00-\x1f\x7f]/.test(name)) return false;
@@ -90,9 +92,10 @@ export function isValidBranchName(name: string): boolean {
 
 /**
  * সিমুলেটরে ফোল্ডার নেই, তাই ফাইলের নাম সমতল: "/" চলবে না, ".git" চলবে না।
+ * "__proto__" JavaScript object-এ রাখা যায় না বলে সেটাও না।
  */
 export function isValidFileName(name: string): boolean {
-  if (!name || name === "." || name === ".." || name === ".git") return false;
+  if (!name || name === "." || name === ".." || name === ".git" || name === "__proto__") return false;
   if (name.startsWith("-")) return false;
   return !/[/\\\s\x00-\x1f]/.test(name);
 }

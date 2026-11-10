@@ -1,5 +1,5 @@
 import type { CommandHandler, Commit, SimState } from "../types";
-import { failure, headCommit, isAncestor, isValidBranchName, PROJECT_PATH, success } from "../helpers";
+import { failure, get, has, headCommit, isAncestor, isValidBranchName, PROJECT_PATH, success } from "../helpers";
 import { msg } from "../messages";
 
 type Result = ReturnType<CommandHandler>;
@@ -18,7 +18,7 @@ function create(state: SimState, name: string): Result {
   if (!isValidBranchName(name)) {
     return failure(state, `fatal: '${name}' is not a valid branch name`, msg.branchInvalid(name));
   }
-  if (repo.branches[name] || name === repo.head) {
+  if (has(repo.branches, name) || name === repo.head) {
     return failure(state, `fatal: a branch named '${name}' already exists`, msg.branchExists(name));
   }
   const head = headCommit(repo);
@@ -41,7 +41,7 @@ function remove(state: SimState, names: string[], force: boolean): Result {
   const out: string[] = [];
   const explain: string[] = [];
   for (const name of names) {
-    const id = repo.branches[name];
+    const id = get(repo.branches, name);
     if (name === repo.head) {
       return failure(
         { ...state, repo },
@@ -76,13 +76,13 @@ function rename(state: SimState, args: string[], force: boolean): Result {
   const repo = state.repo!;
   if (args.length === 0 || args.length > 2) return failure(state, "fatal: branch name required", msg.branchRenameMissing);
   const [from, to] = args.length === 1 ? [repo.head, args[0]] : [args[0], args[1]];
-  const isUnbornHead = from === repo.head && !repo.branches[from];
-  if (!repo.branches[from] && !isUnbornHead) {
+  const isUnbornHead = from === repo.head && !has(repo.branches, from);
+  if (!has(repo.branches, from) && !isUnbornHead) {
     return failure(state, `error: refname refs/heads/${from} not found\nfatal: Branch rename failed`, msg.branchNotFound(from));
   }
   if (!isValidBranchName(to)) return failure(state, `fatal: '${to}' is not a valid branch name`, msg.branchInvalid(to));
   if (from === to) return success(state, "", msg.branchRenamed(from, to));
-  if (repo.branches[to] && !force) {
+  if (has(repo.branches, to) && !force) {
     return failure(state, `fatal: a branch named '${to}' already exists`, msg.branchExists(to));
   }
   if (to === repo.head && force) {

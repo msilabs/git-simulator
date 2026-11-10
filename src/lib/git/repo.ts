@@ -5,7 +5,7 @@
 import type { CommandResult, SimState } from "./types";
 import { EMPTY_STATE } from "./types";
 import { parseCommand } from "./parser";
-import { failure } from "./helpers";
+import { failure, get } from "./helpers";
 import { msg } from "./messages";
 import { GIT_COMMANDS, SHELL_COMMANDS } from "./commands";
 
@@ -20,7 +20,7 @@ export function runCommand(state: SimState, input: string): CommandResult {
   if (program === "git") {
     const [sub, ...rest] = args;
     if (!sub) return failure(state, "usage: git <command> [<args>]", msg.gitAlone);
-    const command = GIT_COMMANDS[sub];
+    const command = get(GIT_COMMANDS, sub);
     if (!command) {
       return failure(
         state,
@@ -38,7 +38,7 @@ export function runCommand(state: SimState, input: string): CommandResult {
     return command.run(state, rest);
   }
 
-  const shell = SHELL_COMMANDS[program];
+  const shell = get(SHELL_COMMANDS, program);
   if (shell) return shell(state, args);
   return failure(state, `${program}: command not found`, msg.unknownCommand);
 }

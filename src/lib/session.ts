@@ -7,6 +7,7 @@
  * ভিত্তিতে ঢুকিয়ে দিই (`compact`), তাই সেভের আকার সীমার মধ্যে থাকে।
  */
 import { runCommand, EMPTY_STATE } from "./git/repo";
+import { has } from "./git/own";
 import { msg } from "./git/messages";
 import type { SimState } from "./git/types";
 import { nextStep, STARTER_STEPS } from "./steps";
@@ -159,12 +160,12 @@ export function isValidSimState(x: unknown): x is SimState {
   for (const [id, c] of Object.entries(commits)) {
     if (!isObject(c) || c.id !== id || typeof c.message !== "string" || typeof c.time !== "number") return false;
     if (typeof c.branch !== "string" || !isFileMap(c.files) || !isStringArray(c.parents)) return false;
-    if (c.parents.length > 2 || !c.parents.every((p) => p in commits)) return false;
+    if (c.parents.length > 2 || !c.parents.every((p) => has(commits, p))) return false;
   }
-  if (!Object.values(repo.branches).every((id) => typeof id === "string" && id in commits)) return false;
+  if (!Object.values(repo.branches).every((id) => typeof id === "string" && has(commits, id))) return false;
   const merge = repo.merge;
   if (merge !== undefined && merge !== null) {
-    if (!isObject(merge) || typeof merge.theirs !== "string" || !(merge.theirs in commits)) return false;
+    if (!isObject(merge) || typeof merge.theirs !== "string" || !has(commits, merge.theirs)) return false;
     if (typeof merge.branch !== "string" || typeof merge.message !== "string") return false;
     if (!isFileMap(merge.unmerged) || !isStringArray(merge.touched)) return false;
   }

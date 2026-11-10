@@ -1,5 +1,5 @@
 import type { CommandHandler, ConflictKind, Repo, SimState } from "../types";
-import { allPaths, headCommit, headTree, success } from "../helpers";
+import { allPaths, get, has, headCommit, headTree, success } from "../helpers";
 import { msg } from "../messages";
 
 export interface StatusEntry {
@@ -36,17 +36,20 @@ export function getStatus(state: SimState, repo: Repo): StatusInfo {
     .map((path) => ({ path, kind: conflicts[path] }));
 
   for (const path of allPaths(head, index, work)) {
-    if (path in conflicts) continue; // unmerged ফাইল আলাদা অংশে দেখায়
-    if (index[path] !== head[path]) {
+    if (has(conflicts, path)) continue; // unmerged ফাইল আলাদা অংশে দেখায়
+    const inHead = get(head, path);
+    const inIndex = get(index, path);
+    const inWork = get(work, path);
+    if (inIndex !== inHead) {
       staged.push({
         path,
-        kind: !(path in head) ? "new file" : !(path in index) ? "deleted" : "modified",
+        kind: inHead === undefined ? "new file" : inIndex === undefined ? "deleted" : "modified",
       });
     }
-    if (path in index) {
-      if (!(path in work)) unstaged.push({ path, kind: "deleted" });
-      else if (work[path] !== index[path]) unstaged.push({ path, kind: "modified" });
-    } else if (path in work) {
+    if (inIndex !== undefined) {
+      if (inWork === undefined) unstaged.push({ path, kind: "deleted" });
+      else if (inWork !== inIndex) unstaged.push({ path, kind: "modified" });
+    } else if (inWork !== undefined) {
       untracked.push(path);
     }
   }

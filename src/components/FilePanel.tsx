@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import type { SimState } from "@/lib/git/types";
-import { allPaths, headCommit } from "@/lib/git/helpers";
+import { allPaths, get, has, headCommit } from "@/lib/git/helpers";
 import { ui } from "@/lib/ui-text";
 import { RichText } from "./RichText";
 
@@ -87,20 +87,22 @@ export function FilePanel({ state }: { state: SimState }) {
   const unmerged = repo?.merge?.unmerged ?? {};
   const unmergedCount = Object.keys(unmerged).length;
   const workRows: Row[] = allPaths(workdir, index, unmerged)
-    .filter((p) => p in workdir || (repo && p in index))
+    .filter((p) => has(workdir, p) || (repo && has(index, p)))
     .map((p): Row => {
-      if (p in unmerged) return { name: p, content: workdir[p], badge: "conflict", strike: !(p in workdir) };
-      if (!(p in workdir)) return { name: p, badge: "deleted", strike: true };
-      if (!repo || !(p in index)) return { name: p, content: workdir[p], badge: "untracked" };
-      if (workdir[p] !== index[p]) return { name: p, content: workdir[p], badge: "modified" };
-      return { name: p, content: workdir[p] };
+      const content = get(workdir, p);
+      if (has(unmerged, p)) return { name: p, content, badge: "conflict", strike: content === undefined };
+      if (content === undefined) return { name: p, badge: "deleted", strike: true };
+      if (!repo || !has(index, p)) return { name: p, content, badge: "untracked" };
+      if (content !== index[p]) return { name: p, content, badge: "modified" };
+      return { name: p, content };
     });
 
   const stageRows: Row[] = allPaths(index, tree).map((p): Row => {
-    if (p in unmerged) return { name: p, content: index[p], badge: "conflict" };
-    if (!(p in index)) return { name: p, badge: "deleted", strike: true };
-    if (index[p] !== tree[p]) return { name: p, content: index[p], badge: "staged" };
-    return { name: p, content: index[p] };
+    const content = get(index, p);
+    if (has(unmerged, p)) return { name: p, content, badge: "conflict" };
+    if (content === undefined) return { name: p, badge: "deleted", strike: true };
+    if (content !== get(tree, p)) return { name: p, content, badge: "staged" };
+    return { name: p, content };
   });
 
   const commitRows: Row[] = Object.keys(tree)

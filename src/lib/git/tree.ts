@@ -4,6 +4,7 @@
  */
 import type { FileMap } from "./types";
 import { lineDiff } from "./lines";
+import { get, has } from "./own";
 
 export function setFile(files: FileMap, name: string, content: string | undefined): FileMap {
   const next: Record<string, string> = { ...files };
@@ -15,7 +16,7 @@ export function setFile(files: FileMap, name: string, content: string | undefine
 export function sameFiles(a: FileMap, b: FileMap): boolean {
   const ak = Object.keys(a);
   if (ak.length !== Object.keys(b).length) return false;
-  return ak.every((k) => k in b && a[k] === b[k]);
+  return ak.every((k) => has(b, k) && a[k] === b[k]);
 }
 
 export function allPaths(...maps: FileMap[]): string[] {
@@ -34,9 +35,11 @@ export interface FileChange {
 export function treeChanges(from: FileMap, to: FileMap): FileChange[] {
   const changes: FileChange[] = [];
   for (const path of allPaths(from, to)) {
-    if (from[path] === to[path]) continue;
-    const kind = !(path in from) ? "added" : !(path in to) ? "deleted" : "modified";
-    changes.push({ path, kind, ...lineDiff(from[path], to[path]) });
+    const before = get(from, path);
+    const after = get(to, path);
+    if (before === after) continue;
+    const kind = before === undefined ? "added" : after === undefined ? "deleted" : "modified";
+    changes.push({ path, kind, ...lineDiff(before, after) });
   }
   return changes;
 }
@@ -97,26 +100,28 @@ export function moveTree(
   let nextIndex = index;
 
   for (const path of allPaths(current, target, index, workdir)) {
-    if (current[path] === target[path]) continue; // এই ফাইল বদলাবে না; পরিবর্তন থাকলে থাকুক
-    const tracked = path in current || path in index;
+    const cur = get(current, path);
+    const next = get(target, path);
+    if (cur === next) continue; // এই ফাইল বদলাবে না; পরিবর্তন থাকলে থাকুক
+    const tracked = cur !== undefined || has(index, path);
     if (!tracked) {
       // এখানে পৌঁছালে ফাইলটা শুধু target-এ আছে।
-      if (path in workdir) {
+      if (has(workdir, path)) {
         // হুবহু একই লেখা হলে আসল Git-ও আপত্তি করে না; ফাইলটা তখন tracked হয়ে যায়।
-        if (workdir[path] !== target[path]) untracked.push(path);
-        else nextIndex = setFile(nextIndex, path, target[path]);
+        if (workdir[path] !== next) untracked.push(path);
+        else nextIndex = setFile(nextIndex, path, next);
       } else {
-        nextWork = setFile(nextWork, path, target[path]);
-        nextIndex = setFile(nextIndex, path, target[path]);
+        nextWork = setFile(nextWork, path, next);
+        nextIndex = setFile(nextIndex, path, next);
       }
       continue;
     }
-    if (index[path] !== current[path] || workdir[path] !== current[path]) {
+    if (get(index, path) !== cur || get(workdir, path) !== cur) {
       blocked.push(path);
       continue;
     }
-    nextWork = setFile(nextWork, path, target[path]);
-    nextIndex = setFile(nextIndex, path, target[path]);
+    nextWork = setFile(nextWork, path, next);
+    nextIndex = setFile(nextIndex, path, next);
   }
 
   if (blocked.length) return { ok: false, reason: "local-changes", paths: blocked };

@@ -43,6 +43,7 @@ Other Git commands are recognised as "not in the simulator yet".
 
 - Commit ids are 7-character hex ids from a small hash, not SHA-1. They are unique within a session.
 - There are no folders. File names are flat, and there are no globs.
+- `__proto__` cannot be used as a file or branch name (a JavaScript object cannot hold that key). Every other name, including `constructor` or `toString`, works normally.
 - The line-level merge is plain diff3 with the default `merge` conflict style. Real Git (ort) has extra heuristics, so in rare cases it draws conflict hunks differently.
 - While a merge is in progress, both `switch` and `checkout` refuse to change branches. Real `checkout` allows it once every conflict is resolved.
 - `git diff` during a conflict shows a normal diff against our version, not Git's combined `diff --cc` format. Commit-to-commit diffs (`git diff main feature`) are not supported yet.
@@ -86,6 +87,7 @@ src/lib/git/
   lines.ts        line-based LCS diff
   tree.ts         file snapshots: comparing, stats, switching trees
   refs.ts         commits, branches, ancestry, ids, name checks
+  own.ts          has()/get(): safe lookups by user-typed names
   helpers.ts      result helpers, re-exports the three modules above
   commands/       one file per command + index.ts registry
 src/lib/session.ts  terminal session: run, undo, replay (pure)

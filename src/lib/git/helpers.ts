@@ -1,10 +1,11 @@
 /**
  * কমান্ডগুলোর সাধারণ হেল্পার। বড় অংশগুলো আলাদা ফাইলে আছে:
- * lines.ts (লাইন-diff), tree.ts (ফাইলের স্ন্যাপশট), refs.ts (commit/branch)।
+ * own.ts (নাম দিয়ে নিরাপদে খোঁজা), lines.ts (লাইন-diff), tree.ts (ফাইলের স্ন্যাপশট), refs.ts (commit/branch)।
  * কমান্ডের সুবিধার জন্য এখান থেকেই সব re-export করা হয়।
  */
 import type { SimState, CommandResult } from "./types";
 
+export * from "./own";
 export * from "./lines";
 export * from "./tree";
 export * from "./refs";

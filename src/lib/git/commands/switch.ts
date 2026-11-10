@@ -1,5 +1,5 @@
 import type { CommandHandler, FileMap, SimState } from "../types";
-import { allPaths, failure, headTree, isValidBranchName, moveTree, overwrittenError, success, unmergedPaths } from "../helpers";
+import { allPaths, failure, get, has, headTree, isValidBranchName, moveTree, overwrittenError, success, unmergedPaths } from "../helpers";
 import { msg } from "../messages";
 
 type Verb = "switch" | "checkout";
@@ -8,8 +8,11 @@ type Verb = "switch" | "checkout";
 function carriedChanges(workdir: FileMap, index: FileMap, tree: FileMap): string[] {
   const lines: string[] = [];
   for (const p of allPaths(tree, index)) {
-    if (index[p] !== tree[p]) lines.push(`${!(p in tree) ? "A" : !(p in index) ? "D" : "M"}\t${p}`);
-    else if (p in index && workdir[p] !== index[p]) lines.push(`${p in workdir ? "M" : "D"}\t${p}`);
+    const inTree = get(tree, p);
+    const inIndex = get(index, p);
+    const inWork = get(workdir, p);
+    if (inIndex !== inTree) lines.push(`${inTree === undefined ? "A" : inIndex === undefined ? "D" : "M"}\t${p}`);
+    else if (inIndex !== undefined && inWork !== inIndex) lines.push(`${inWork !== undefined ? "M" : "D"}\t${p}`);
   }
   return lines;
 }
@@ -19,10 +22,10 @@ function create(state: SimState, name: string): ReturnType<CommandHandler> {
   if (!isValidBranchName(name)) {
     return failure(state, `fatal: '${name}' is not a valid branch name`, msg.branchInvalid(name));
   }
-  if (repo.branches[name] || name === repo.head) {
+  if (has(repo.branches, name) || name === repo.head) {
     return failure(state, `fatal: a branch named '${name}' already exists`, msg.branchExists(name));
   }
-  const headId = repo.branches[repo.head];
+  const headId = get(repo.branches, repo.head);
   // প্রথম commit-এর আগে নতুন branch মানে শুধু HEAD-এর নাম বদল (আসল Git-এও তাই)।
   const branches = headId ? { ...repo.branches, [name]: headId } : repo.branches;
   return success(
@@ -36,9 +39,9 @@ function switchTo(state: SimState, name: string, verb: Verb): ReturnType<Command
   const repo = state.repo!;
   if (name === repo.head) return success(state, `Already on '${name}'`, msg.switchAlready(name));
 
-  const targetId = repo.branches[name];
+  const targetId = get(repo.branches, name);
   if (!targetId) {
-    if (verb === "checkout" && (name in state.workdir || name in repo.index)) {
+    if (verb === "checkout" && (has(state.workdir, name) || has(repo.index, name))) {
       return failure(state, `error: unsupported in simulator: git checkout ${name}`, msg.checkoutIsFile(name));
     }
     return verb === "switch"

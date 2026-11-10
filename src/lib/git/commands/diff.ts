@@ -1,5 +1,5 @@
 import type { CommandHandler } from "../types";
-import { allPaths, failure, headTree, success, unmergedPaths } from "../helpers";
+import { allPaths, failure, get, has, headTree, success, unmergedPaths } from "../helpers";
 import { fileDiff } from "../diffFormat";
 import { msg } from "../messages";
 
@@ -24,10 +24,10 @@ export const diff: CommandHandler = (state, args) => {
 
   const head = headTree(repo);
   for (const p of paths) {
-    if (p === "HEAD" || p in repo.branches || p in repo.commits) {
+    if (p === "HEAD" || has(repo.branches, p) || has(repo.commits, p)) {
       return failure(state, `error: unsupported in simulator: git diff ${p}`, msg.diffRevisionUnsupported(p));
     }
-    if (!(p in state.workdir) && !(p in repo.index) && !(p in head)) {
+    if (!has(state.workdir, p) && !has(repo.index, p) && !has(head, p)) {
       return failure(
         state,
         `fatal: ambiguous argument '${p}': unknown revision or path not in the working tree.`,
@@ -40,11 +40,11 @@ export const diff: CommandHandler = (state, args) => {
   const [from, to] = staged ? [head, repo.index] : [repo.index, state.workdir];
   const candidates = (paths.length ? paths : allPaths(from, to)).filter((p) => {
     if (staged) return !unmerged.has(p); // unmerged ফাইল staged অংশে দেখায় না
-    return p in repo.index; // untracked বাদ
+    return has(repo.index, p); // untracked বাদ
   });
 
   const output = candidates
-    .map((p) => fileDiff(p, from[p], to[p]))
+    .map((p) => fileDiff(p, get(from, p), get(to, p)))
     .filter(Boolean)
     .join("\n");
   if (!output) return success(state, "", staged ? msg.diffNoneStaged : msg.diffNone);

@@ -1,5 +1,5 @@
 import type { CommandHandler } from "../types";
-import { failure, isValidFileName, setFile, success } from "../helpers";
+import { failure, has, isValidFileName, setFile, success } from "../helpers";
 import { msg } from "../messages";
 
 /**
@@ -15,7 +15,7 @@ export const touch: CommandHandler = (state, args) => {
   const created: string[] = [];
   const existing: string[] = [];
   for (const name of args) {
-    if (name in workdir) existing.push(name);
+    if (has(workdir, name)) existing.push(name);
     else {
       workdir = setFile(workdir, name, "");
       created.push(name);

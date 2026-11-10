@@ -1,5 +1,5 @@
 import type { CommandHandler, FileMap } from "../types";
-import { allPaths, failure, headTree, setFile, success, unmergedPaths } from "../helpers";
+import { allPaths, failure, get, has, headTree, setFile, success, unmergedPaths } from "../helpers";
 import { msg } from "../messages";
 
 /**
@@ -29,7 +29,7 @@ export const restore: CommandHandler = (state, args) => {
   const unmerged = new Set(unmergedPaths(repo));
   const all = paths.includes(".");
   // কোন ফাইলগুলো ছোঁয়া হবে: শুধু যেগুলো Git চেনে
-  const known = (p: string) => (staged ? p in repo.index || p in head : p in repo.index);
+  const known = (p: string) => (staged ? has(repo.index, p) || has(head, p) : has(repo.index, p));
   let targets: string[];
   if (all) {
     targets = allPaths(repo.index, head, state.workdir).filter(known);
@@ -47,14 +47,14 @@ export const restore: CommandHandler = (state, args) => {
   const unstaged: string[] = [];
   const discarded: string[] = [];
   for (const p of targets) {
-    if (staged && index[p] !== head[p]) {
-      index = setFile(index, p, head[p]);
+    if (staged && get(index, p) !== get(head, p)) {
+      index = setFile(index, p, get(head, p));
       unstaged.push(p);
     }
     if (worktree) {
       // --staged থাকলে HEAD থেকে, নাহলে index থেকে
-      const source = staged ? head[p] : index[p];
-      if (workdir[p] !== source) {
+      const source = staged ? get(head, p) : get(index, p);
+      if (get(workdir, p) !== source) {
         workdir = setFile(workdir, p, source);
         discarded.push(p);
       }

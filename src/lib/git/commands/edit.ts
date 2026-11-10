@@ -1,5 +1,5 @@
 import type { CommandHandler } from "../types";
-import { failure, isValidFileName, setFile, success } from "../helpers";
+import { failure, has, isValidFileName, setFile, success } from "../helpers";
 import { msg } from "../messages";
 
 /**
@@ -13,10 +13,10 @@ export const edit: CommandHandler = (state, args) => {
   if (!isValidFileName(name)) return failure(state, `edit: '${name}': Invalid file name`, msg.invalidFileName(name));
 
   const content = words.join(" ").replace(/\\n/g, "\n");
-  const existed = name in state.workdir;
+  const existed = has(state.workdir, name);
   if (existed && state.workdir[name] === content) return success(state, "", msg.editSame(name));
 
-  const tracked = state.repo ? name in state.repo.index : false;
+  const tracked = state.repo ? has(state.repo.index, name) : false;
   return success(
     { ...state, workdir: setFile(state.workdir, name, content) },
     "",

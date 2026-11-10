@@ -1,5 +1,5 @@
 import type { CommandHandler, ConflictKind, FileMap } from "../types";
-import { allPaths, failure, sameFiles, setFile, success } from "../helpers";
+import { allPaths, failure, get, has, sameFiles, setFile, success } from "../helpers";
 import { msg } from "../messages";
 
 /**
@@ -27,7 +27,7 @@ export const add: CommandHandler = (state, args) => {
   // আসল Git একটাও pathspec না মিললে কিছুই stage না করে থেমে যায়।
   if (!all) {
     for (const p of paths) {
-      if (!(p in state.workdir) && !(p in repo.index) && !(p in (repo.merge?.unmerged ?? {}))) {
+      if (!has(state.workdir, p) && !has(repo.index, p) && !has(repo.merge?.unmerged ?? {}, p)) {
         return failure(state, `fatal: pathspec '${p}' did not match any files`, msg.addNoMatch(p));
       }
     }
@@ -40,18 +40,18 @@ export const add: CommandHandler = (state, args) => {
   const unmerged: Record<string, ConflictKind> = { ...(repo.merge?.unmerged ?? {}) };
   const resolved: string[] = [];
   for (const p of targets) {
-    const content = state.workdir[p];
-    if (p in unmerged) {
+    const content = get(state.workdir, p);
+    if (has(unmerged, p)) {
       delete unmerged[p];
       resolved.push(p);
     }
-    if (index[p] === content) continue;
+    if (get(index, p) === content) continue;
     index = setFile(index, p, content);
     (content === undefined ? removed : added).push(p);
   }
 
   if (resolved.length) {
-    const markers = resolved.filter((p) => /^(<{7}|>{7}) /m.test(state.workdir[p] ?? ""));
+    const markers = resolved.filter((p) => /^(<{7}|>{7}) /m.test(get(state.workdir, p) ?? ""));
     const explanation = [
       msg.addResolved(resolved),
       markers.length ? msg.addStillMarkers(markers) : "",
